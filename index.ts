@@ -1,6 +1,6 @@
 import { SessionManager, getAgentDir, getMarkdownTheme, type ExtensionAPI, type ExtensionContext } from '@earendil-works/pi-coding-agent';
-import { Type } from '@earendil-works/pi-ai';
-import { Text, Markdown, truncateToWidth, visibleWidth, wrapTextWithAnsi } from '@earendil-works/pi-tui';
+import { Type } from 'typebox';
+import { Markdown, truncateToWidth, visibleWidth, wrapTextWithAnsi } from '@earendil-works/pi-tui';
 import { readFileSync } from 'node:fs';
 import { connect, listen } from './wire.mjs';
 import { OWNER, NOTE, INBOX, spec, message, observation, fork, here, roleTools, launchSpec, split, makeNote } from './host.mjs';
@@ -13,7 +13,9 @@ type Ctx = ExtensionContext;
 type Identity = { id:string; parent:string; parentFile:string; name:string; job:string; work:boolean; allowed?:string[] };
 type Peer = { call:(method:string, data:any)=>Promise<any>; close:()=>void };
 type Item = { kind:'watch'|'direct'; text:string; from:string };
-type Link = { owner:Identity; state:string; address?:{ pane:string; terminal:string }; peer?:Peer; ready:Promise<Peer|undefined>; early:Item[]; skipped:number; end?:(why:string)=>void };
+type Address = {pane:string;terminal?:string};
+type Surface = {open:(options:{owner:Identity;location:{pane:string;direction:string};ticket:string;current:()=>boolean;ready:()=>Promise<boolean>;signal:AbortSignal;ask:(text:string)=>Promise<any>;note:(text:string)=>any;stop:()=>void})=>Promise<Address>};
+type Link = { owner:Identity; state:string; address?:Address; peer?:Peer; ready:Promise<Peer|undefined>; early:Item[]; skipped:number; end?:(why:string)=>void };
 const active = (r:Link) => r.state === 'watching' || r.state === 'opening';
 const errorText = (e:unknown) => e instanceof Error ? e.message : String(e);
 
@@ -95,7 +97,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
     }
     waiting.push(item); statusLine(); deliverSoon(); return {state:'accepted by role; reply stays in its pane'};
   }
-  async function startRole(name:string|undefined, job:string|undefined, work:boolean, c:Ctx) {
+  async function startRole(name:string|undefined, job:string|undefined, work:boolean, c:Ctx, surface?:Surface) {
     if(me) throw Error('Open temporary roles from Main. Use /role send main to send a note.');
     const s=spec(name,job,work), epoch=generation;
     if(opening) throw Error('Another split is opening. Check /role status.');
@@ -120,17 +122,25 @@ export default function temporaryRole(pi:ExtensionAPI) {
       const {owner,file}=fork(SessionManager,c,{...s,allowed:roleTools(pi,s.work)});
       const {launch}=launchSpec(pi,c,file,owner,getAgentDir());
       link={owner,state:'opening',ready,early:[],skipped:0};
-      const r=link, ch=channel;
-      r.end=(why)=>{ if(!active(r))return; r.state=why; signalReady(); clearTimeout(timer); r.early=[]; r.peer=undefined; ch.close(); statusLine(); if(why==='startup timed out') ctx.ui.notify(`${owner.name} never connected. Check its pane for a trust prompt or startup error.`, 'warning'); };
+      const r=link, ch=channel, life=new AbortController();
+      r.end=(why)=>{ if(!active(r))return; r.state=why; life.abort(); signalReady(); clearTimeout(timer); r.early=[]; r.peer=undefined; ch.close(); statusLine(); if(why==='startup timed out') ctx.ui.notify(`${owner.name} never connected. Check its pane for a trust prompt or startup error.`, 'warning'); };
       for(const [id,v] of roles) if(!active(v)&&v.owner.name.toLowerCase()===s.name.toLowerCase()) roles.delete(id);
       roles.set(owner.id,r);
       ch.ticket({child:owner.id,parent:owner.parent,model:`${c.model!.provider}/${c.model!.id}`,launch}); statusLine();
       timer=setTimeout(()=>r.end?.('startup timed out'),90_000); timer.unref();
-      r.address=await split(pi,c.cwd,loc,ch.path,()=>epoch===generation && r.state==='opening');
+      const current=()=>epoch===generation && sid()===owner.parent && active(r);
+      r.address=surface ? await surface.open({owner,location:loc,ticket:ch.path,current,ready:async()=>!!(await r.ready)&&current(),signal:life.signal,
+        ask:async text=>{if(!current()||!r.peer)throw Error('Role is not connected.');return r.peer.call('direct',{text:message(text)});},
+        note:text=>{if(!current()||!r.peer)throw Error('Role is not connected.');return receiveNote(owner,text);},stop:()=>r.end?.('disconnected'),
+      }) : await split(pi,c.cwd,loc,ch.path,()=>current() && r.state==='opening');
       return {id:owner.id,name:owner.name,state:r.state,...r.address};
     } catch(e) { if(link)link.end?.('launch failed'); else channel?.close(); throw e; }
     finally { opening=false; }
   }
+  // Optional local renderer: the role host still owns the fork, tool access, watching and inbox. No model exposes this event as a tool.
+  pi.events.on('herdr-role:view.v1',(raw:unknown)=>{const q=raw as any;if(!ctx||q?.session!==sid()||typeof q?.accept!=='function'||typeof q?.surface?.open!=='function')return;
+    q.accept(startRole(q.name,q.job,false,ctx,q.surface));
+  });
   pi.on('session_start',async(_e,c)=>{
     ctx=c; generation++; roles.clear(); dispatching=false; scheduled=false; opening=false; readInbox();
     me=c.sessionManager.getBranch().filter(e=>e.type==='custom'&&e.customType===OWNER).map(e=>(e as any).data as Identity).findLast(o=>o?.id===sid());
@@ -243,7 +253,10 @@ export default function temporaryRole(pi:ExtensionAPI) {
   }
   function present(action:string,r:any) {
     if(action==='status')return me?`${me.name}: ${childState}. ${me.job}`:[...r.roles.map((v:any)=>`${v.name}: ${v.state}`),`${r.inbox} pending notes · /role inbox`].join('\n');
-    if(action==='inbox')return r.notes.map((n:any)=>`${n.name}: ${n.text}`).join('\n\n')||'No pending role notes.';
+    if(action==='inbox'){if(!r.notes.length)return 'No pending role notes.';
+      const body=r.notes.map((n:any)=>`### ${n.name}\n\n${n.text}`).join('\n\n');
+      return ctx.mode==='tui'?new Markdown(body,0,0,getMarkdownTheme()).render(Math.max(12,(process.stdout.columns||72)-4)).map(s=>s.trimEnd()).join('\n'):body;
+    }
     if(action==='open')return `${r.name}: ${r.state} in the adjacent pane.`;
     if(r.recipients)return r.recipients.map((v:any)=>`${v.name}: ${v.error||v.state}`).join('\n');
     return r.state;
