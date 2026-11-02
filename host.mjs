@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { watchText } from './presentation.mjs';
 
 export const OWNER = 'temporary-role.owner.v1', NOTE = 'temporary-role.note.v1', INBOX = 'temporary-role.inbox.v1';
 export const presets = {
@@ -23,7 +24,7 @@ export function observation(m) {
   const parts = Array.isArray(m.content) ? m.content : [{ type: 'text', text: m.content }];
   if (parts.some(b => b.type === 'toolCall')) return;
   const text = safeText(parts.filter(b => b.type === 'text').map(b => b.text).join('\n'));
-  if (text) return { from: m.role, text: text.length > 4000 ? text.slice(0, 3990) + ' [trimmed]' : text };
+  if (text) return { from: m.role, text: watchText(text,m.role) };
 }
 // Close only unresolved calls at the end of this fork, never insert a result for a prior turn.
 export function unfinished(branch) {

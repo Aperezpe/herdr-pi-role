@@ -9,7 +9,10 @@ test('the live feed shares prompt and answer text, not tools, aborted replies, h
   assert.deepEqual(observation({role:'assistant',stopReason:'stop',content:types}),{from:'assistant',text:'A room opened.'});
   assert.deepEqual(observation({role:'user',content:types}),{from:'user',text:'A room opened.'});
   for(const m of [{role:'toolResult'},{role:'system'},{role:'custom'},{role:'assistant',stopReason:'aborted'},{role:'assistant',stopReason:'toolUse'}]) assert.equal(observation({...m,content:types}),undefined);
-  assert.match(observation({role:'user',content:'a'.repeat(50_000)}).text,/\[trimmed\]$/);
+  const long=observation({role:'user',content:'a'.repeat(50_000)+'Actual request.'}).text;assert.match(long,/middle trimmed/);assert.match(long,/Actual request\.$/);
+  const attached='<skill name="here-now" location="/private/example">\n'+ 'Large instructions. '.repeat(400)+'\n</skill>\n';
+  assert.equal(observation({role:'user',content:attached+attached.replace('here-now','another')+'\nOpen the recording room.'}).text,'Open the recording room.\n[Attached skills: here-now, another]');
+  assert.match(observation({role:'user',content:'Example: '+attached}).text,/Example: <skill/);
   for(const n of ['all','Main','send','\nfoo bar']) assert.throws(()=>spec(n));
 });
 test('an agent opening a role mid-tool does not orphan an old call or duplicate a completed result',()=>{

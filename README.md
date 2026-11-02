@@ -39,6 +39,12 @@ The role uses Main’s selected model and thinking setting. The fork includes th
 
 By default the role can inspect files using the reading tools available in Main. For a job that needs to change files or run commands, opt in when you open it: `/role --work Notes Keep agreed decisions in notes.md`. Work roles share the project directory; give each writer its own files. These are Pi tool limits, not an operating-system sandbox. The extension needs normal local permissions and does not transmit messages to an external messaging service.
 
+## Read a role’s reply
+
+Critic uses **Risk → Why it matters → Next check**. Notes separates **Decided**, **Still open**, and **Next action**. Research uses **Finding**, **Evidence**, and **Unknown**. Other roles start with **Finding → Basis → Next step**. These are writing instructions for the role, not fabricated fields or a rigid schema: the model can omit empty sections or honor a different format you request.
+
+A watched turn shows its origin and a two-line excerpt. Expand it with Pi’s expand-output shortcut to read the forwarded Markdown. Leading Pi skill attachments are identified by name rather than repeated in full; long observations retain the beginning and the end. Main’s original message is unchanged.
+
 ## Send a message deliberately
 
 | Where you type | Command | What happens |
