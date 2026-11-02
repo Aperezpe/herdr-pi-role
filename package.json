@@ -1,0 +1,11 @@
+{
+  "name": "herdr-pi-role",
+  "version": "0.2.0",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "private": true,
+  "type": "module",
+  "description": "An interactive Pi role beside your current conversation in Herdr.",
+  "keywords": ["pi-package"],
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-ai": "*", "@earendil-works/pi-tui": "*" }
+}
