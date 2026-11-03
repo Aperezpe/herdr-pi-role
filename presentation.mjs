@@ -1,6 +1,6 @@
 // Prompts control prose; the UI controls attribution and quote length. Never invent fields or change a model's answer to make it fit.
 const formats={
-  critic:['Risk','Why it matters','Next check'],notes:['Decided','Still open','Next action'],research:['Finding','Evidence','Unknown'],
+  historian:['Answer','Evidence','Unknown'],critic:['Risk','Why it matters','Next check'],notes:['Decided','Still open','Next action'],research:['Finding','Evidence','Unknown'],
 };
 export function template(name){return formats[String(name).toLowerCase()]??['Finding','Basis','Next step'];}
 export function responseGuide(name){

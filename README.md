@@ -27,6 +27,16 @@ Type **`/role`**. Pi lists the roles and commands immediately; no Space or Tab i
 
 Main offers starter roles and live recipients. A linked child offers `main`, not its siblings; disconnected children don’t offer send. `--work` is always explicit. Run `/role help` for the guide in this pane or `/role help send` for messaging details. Other help topics: `open`, `work`, `inbox`, `status`, `stop`.
 
+## Ask Historian from Main
+
+`/historian Why did we drop the first demo?` uses Main’s model for one read-only history turn. The answer appears right in this thread; no pane or inbox step is required. Or ask Main in ordinary language to consult Historian.
+
+Historian searches the active branch of this Pi session, including original messages before compaction. Ask for the speaker, entry ID and exact wording. It can distinguish a compaction summary from an original message, but cannot recover deleted entries. Other sessions, sibling branches, raw tool output, hidden thinking and images are outside the search.
+
+For a private ongoing conversation, open /role Historian (or /widget Historian with the optional desk). Unlike a watching role, it starts with just its job, waits for a question, and requests excerpts from its linked Main. It has no shell or file tools. A different chosen provider can receive those excerpts. Private answers stay there unless explicitly sent back.
+
+Agent interface: historian({query, beforeCompaction?, page?}) searches literal text; omit query for newest entries. historian({entry, offset?}) reads a longer excerpt by ID. Results report total matches and source positions; no match is not proof the event never happened.
+
 ## Give a pane a job
 
 `/role` opens a Critic. `/role Notes` and `/role Research` also have starter jobs. To name your own role and set its job in one line:
@@ -37,7 +47,7 @@ Main offers starter roles and live recipients. A linked child offers `main`, not
 
 The chosen **provider/model** runs in the child; Main’s model never changes. The picker lists configured chat models (scoped choices when configured, plus Main); type to filter by provider, ID or name. To bypass the picker, use `/role Critic --model main`, or `/role NAME --model provider/model [job]` with an exact ID. Inside the model picker, **Tab** cycles the highlighted model’s supported thinking levels; Enter keeps the displayed setting. A non-reasoning model shows **off (fixed)**. The initial level comes from the scoped model setting or Main, adjusted to the model’s capabilities. For a direct launch, add `--thinking high` immediately after `--model provider/model` and before the job. Unsupported explicit levels are rejected rather than substituted. The child verifies its model before linking. Changing its model later ends the link rather than silently forwarding new Main messages to a different provider.
 
-The chosen provider receives the fork and subsequent watched text when the role runs. The fork includes the current **branch**, including its prior tool history. After the fork, only new prompt and answer **text** is forwarded, not tool calls, tool results, images, or reasoning. Each observation can use model tokens. Busy roles batch observations rather than interrupt an answer. Long observations are trimmed; if a role falls more than 24 messages behind, it reports skipped observations. Both panes run on the same computer and use the same Pi profile; the chosen provider may use a different account.
+For watching roles, the chosen provider receives the fork and subsequent watched text when the role runs. Historian instead reads excerpts on demand. The fork includes the current **branch**, including its prior tool history. After the fork, only new prompt and answer **text** is forwarded, not tool calls, tool results, images, or reasoning. Each observation can use model tokens. Busy roles batch observations rather than interrupt an answer. Long observations are trimmed; if a role falls more than 24 messages behind, it reports skipped observations. Both panes run on the same computer and use the same Pi profile; the chosen provider may use a different account.
 
 By default the role can inspect files using the reading tools available in Main. For a job that needs to change files or run commands, opt in when you open it: `/role --work Notes Keep agreed decisions in notes.md`. Work roles share the project directory; give each writer its own files. These are Pi tool limits, not an operating-system sandbox. The extension needs normal local permissions and does not transmit messages to an external messaging service.
 

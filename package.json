@@ -1,6 +1,6 @@
 {
   "name": "herdr-pi-role",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "scripts": { "test": "node --test test/*.test.mjs" },
   "private": true,
   "type": "module",

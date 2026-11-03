@@ -1,3 +1,4 @@
+import {history} from '../history.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { statSync, readFileSync, existsSync } from 'node:fs';
@@ -50,4 +51,9 @@ test('one private ticket binds one role; wrong or reused tickets cannot receive 
     assert.deepEqual(await peer.call('direct','only you'),{type:'direct',seen:'only you'});
     const late=connect(ticket,()=>{},()=>{});clients.push(late);await assert.rejects(late.call('hello',ticket));assert.equal(accepted,1);
   } finally {channel.close(); for(const c of clients)c.close();}
+});
+
+test('Historian returns original speech, not a summary, tool payload or hidden thinking',()=>{
+ const branch=[{id:'a',type:'message',message:{role:'user',content:'x'.repeat(900)+'Original decision'}},{id:'b',type:'message',message:{role:'assistant',content:[{type:'thinking',thinking:'secret'},{type:'toolCall',name:'read',arguments:{name:'secret'}}]}},{id:'c',type:'message',message:{role:'toolResult',toolName:'read',isError:true,content:[{type:'text',text:'secret'}]}},{id:'d',type:'compaction',summary:'Tentative decision'},{id:'e',type:'message',message:{role:'user',content:'Revised decision'}}];
+ const hits=history(branch,{query:'decision',beforeCompaction:true});assert.deepEqual(hits.entries.map(e=>e.id),['a']);assert.match(hits.entries[0].text,/Original decision/);assert.equal(history(branch,{entry:'a',offset:900}).entries[0].text,'Original decision');assert.equal(history(branch,{query:'secret'}).total,0);assert.equal(history(branch,{query:'read: error'}).total,1);assert.equal(history(branch,{entry:'off-branch'}).total,0);
 });
