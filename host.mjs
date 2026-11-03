@@ -76,19 +76,6 @@ export async function here(pi, ctx) {
 export function roleTools(pi, work) {
   return ['read','grep','find','ls',...(work ? ['write','edit','bash'] : [])].filter(t => pi.getActiveTools().includes(t));
 }
-export function launchSpec(pi, ctx, file, owner, agentDir) {
-  const preserve = new Set(['--no-extensions','-ne','--no-context-files','--no-mcp','--no-approve','-na','--no-skills','-ns','--no-prompt-templates','--no-themes','--offline','--no-builtin-tools']);
-  const values = new Set(['--extension','-e','--exclude-tools','--system-prompt','--append-system-prompt']);
-  const args = [], original = process.argv.slice(2);
-  for (let i=0;i<original.length;i++) { const a=original[i]; if(a==='--')break; if(preserve.has(a))args.push(a); else if(values.has(a)&&original[i+1])args.push(a,original[++i]); }
-  const allowed = owner.allowed;
-  const extension = fileURLToPath(new URL('./index.ts', import.meta.url));
-  args.push('-e', extension, '--no-mcp', '--tools', [...allowed, 'temporary_role'].join(','), '--session-dir', ctx.sessionManager.getSessionDir(), '--session', file);
-  if (!ctx.model) throw Error('Select a model in Main before opening a role.');
-  args.push('--model', `${ctx.model.provider}/${ctx.model.id}`, '--thinking', pi.getThinkingLevel());
-  const preloads = []; for(let i=0;i<process.execArgv.length;i++) if(['--require','-r','--import'].includes(process.execArgv[i])&&process.execArgv[i+1]) preloads.push(process.execArgv[i],process.execArgv[++i]);
-  return { allowed, launch: { cwd:ctx.cwd, env:{ PATH:process.env.PATH || '', PI_CODING_AGENT_DIR:agentDir }, argv:[...preloads,process.argv[1],...args] } };
-}
 export async function split(pi, cwd, parent, path, stillCurrent) {
   const windowState = () => jsonExec(pi, 'herdr-app', ['status'], cwd).catch(() => undefined);
   const before = await windowState();

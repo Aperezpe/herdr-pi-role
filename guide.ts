@@ -1,7 +1,7 @@
 // All guidance is local to the pane. Completion values replace Pi's entire argument prefix.
 const presets = [['Critic','Challenge assumptions'],['Notes','Track decisions and open questions'],['Research','Check claims against evidence']];
 const topics = {
-  open: ['Open a role', '/role [NAME] [one-sentence job]', '/role opens Critic. Use Notes or Research for a starter job, or name your own. The fork starts here and watches future Main prompts and answers.'],
+  open: ['Open a role', '/role [NAME] [one-sentence job]', 'Choose a role, then its model. /role Notes --model main uses Main’s model without a picker; --model provider/model pins an exact choice. You can also name your own role. The fork starts here and watches future Main prompts and answers.'],
   work: ['Allow workspace tools', '/role --work Notes Keep decisions in notes.md', 'Opt in at creation. The role can use write, edit and shell tools available in Main, in the same project. Otherwise it only has inspection and messaging tools.'],
   send: ['Send a message', '/role send TARGET MESSAGE', 'A direct request goes to the named role. Its answer stays in its pane. Use all to broadcast. From a linked role, send main queues a note; it never interrupts Main.'],
   inbox: ['Read pending notes', '/role inbox', 'Inspect notes without a model call. They join Main’s context on its next user prompt. Inspecting does not consume them.'],
@@ -38,7 +38,7 @@ export function roleCompletions(raw,s){
 export function roleHint(draft,s){
   if(!/^\/role(?:\s|$)/.test(draft))return null;
   const raw=draft.slice(5).trimStart(), [first='', second='']=raw.trimEnd().split(/\s+/), a=first.toLowerCase(), child=s.mode==='role', rows=children(s);
-  if(!a)return child?['/role help',linked(s)?'Send a note: /role send main <message>':'Disconnected · chat here, or open a new role from Main.']:['/role [name] [job]', 'Default: Critic · ↑/↓ choose · Tab fills · Esc dismisses'];
+  if(!a)return child?['/role help',linked(s)?'Send a note: /role send main <message>':'Disconnected · chat here, or open a new role from Main.']:['/role [name] [job]', 'Default: Critic · choose a role, then its model · Esc dismisses'];
   if(a==='help')return ['/role help [topic]','Space for topics; Enter shows the guide.'];
   if(a==='send'){
     if(child&&!linked(s))return ['/role status','Disconnected: no note can be sent.'];
@@ -60,5 +60,5 @@ export function roleHelp(s,raw=''){
     if(child&&t==='stop')return '/role stop\nDisconnect this role. Its conversation stays open.';
     const [,usage,details]=topics[t];return `${usage}\n${details}${t==='send'?'\nExample: /role send '+(children(s)[0]?.name||'Critic')+' What should I double-check?':''}`;}
   const list=child?[...(linked(s)?['/role send main <message>  ·  Leave a note','/role stop  ·  Disconnect this role']:['No live link to Main. Open a fresh role there to reconnect.']),'/role status  ·  Check this link']:['/role  ·  Open a Critic beside Main','/role Notes  ·  Track decisions','/role Research  ·  Check evidence','/role <name> [job]  ·  Give a role your own job','/role --work <name> [job]  ·  Allow workspace changes','/role send <name | all> <message>  ·  Address linked roles','/role inbox  ·  Read pending notes','/role status  ·  Inspect links','/role stop <name>  ·  Disconnect, keep the pane'];
-  return [...list,'','Type /role to see choices. ↑/↓ highlight; Tab fills the draft.','/role help send  ·  Messaging examples'].join('\n');
+  return [...list,'','Choose a role, then its model. Tab prepares a draft; Enter confirms. /role Critic --model main skips the picker.','/role help send  ·  Messaging examples'].join('\n');
 }

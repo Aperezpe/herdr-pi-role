@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import { statSync, readFileSync, existsSync } from 'node:fs';
 import { observation, spec, unfinished } from '../host.mjs';
 import { listen, connect } from '../wire.mjs';
+import { modelJob, modelToken, modelDirectory, requireRoleModel } from '../models.ts';
+import { launchSpec } from '../role-launch.ts';
+test('resolve exact, available scoped IDs; put the intended provider and nested model ID on the fork, never on Main',()=>{
+ const main={provider:'a',id:'v/one',name:'One'},alt={...main,provider:'b'},outside={provider:'excluded',id:'v/two',name:'Two'};
+ let available=[main,alt,outside];const c={model:main,cwd:'/example',modelRegistry:{getAvailable:()=>available},scopedModels:[{model:alt,thinkingLevel:'low'}],sessionManager:{getSessionDir:()=>'/sessions'}};
+ assert.deepEqual(modelDirectory(c).models.map(r=>r.ref),['a/v/one','b/v/one']);assert.deepEqual(modelDirectory(c,'b/v').models.map(r=>r.ref),['b/v/one']);assert.equal(requireRoleModel(c).ref,'a/v/one');
+ assert.throws(()=>requireRoleModel(c,'v/one'));assert.throws(()=>requireRoleModel(c,'excluded/v/two'));
+ const selected=requireRoleModel(c,'b/v/one'),launch=launchSpec({getThinkingLevel:()=> 'high'},c,'child.jsonl',['read'],'/profile',selected,'/installed/pi.js');
+ assert.deepEqual(launch.argv.slice(-6),['--provider','b','--model','v/one','--thinking','low']);assert.deepEqual(c.model,main);
+ available=[main,outside];assert.throws(()=>requireRoleModel(c,selected.ref));
+ assert.equal(modelJob('--model '+modelToken('local/a model')+' Short job').model,'local/a model');available=[];assert.throws(()=>requireRoleModel(c,'main'));
+ assert.deepEqual(modelJob('--model b/v/one Review --model literally'),{model:'b/v/one',job:'Review --model literally'});assert.deepEqual(modelJob('Review --model main'),{job:'Review --model main'});assert.throws(()=>modelJob('--model'));
+});
 
 test('the live feed shares prompt and answer text, not tools, aborted replies, hidden thinking, images or return notes',()=>{
   const types=['thinking','image','text'].map(type=>({type,text:type==='text'?'A room opened.':'PRIVATE'}));
