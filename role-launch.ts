@@ -25,7 +25,7 @@ export function launchSpec(pi:ExtensionAPI,ctx:ExtensionContext,file:string,allo
   const args:string[]=[],original=process.argv.slice(2);
   for(let i=0;i<original.length;i++){const a=original[i];if(a==='--')break;if(keep.has(a))args.push(a);else if(valued.has(a)&&original[i+1])args.push(a,original[++i]);}
   args.push('-e',fileURLToPath(new URL('./index.ts',import.meta.url)),'--no-mcp','--tools',[...allowed,'temporary_role'].join(','),'--session-dir',ctx.sessionManager.getSessionDir(),'--session',file,
-    '--provider',model.provider,'--model',model.id,'--thinking',model.thinking??pi.getThinkingLevel());
+    '--provider',model.provider,'--model',model.id,'--thinking',model.thinking);
   const preloads:string[]=[];for(let i=0;i<process.execArgv.length;i++)if(['--require','-r','--import'].includes(process.execArgv[i])&&process.execArgv[i+1])preloads.push(process.execArgv[i],process.execArgv[++i]);
   return {cwd:ctx.cwd,env:{PATH:process.env.PATH||'',PI_CODING_AGENT_DIR:agentDir},argv:[...preloads,cli,...args]};
 }

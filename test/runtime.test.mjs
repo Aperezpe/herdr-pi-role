@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 import { statSync, readFileSync, existsSync } from 'node:fs';
 import { observation, spec, unfinished } from '../host.mjs';
 import { listen, connect } from '../wire.mjs';
-import { modelJob, modelToken, modelDirectory, requireRoleModel } from '../models.ts';
+import { modelJob, modelToken, roleModels, modelDirectory, requireRoleModel } from '../models.ts';
 import { launchSpec } from '../role-launch.ts';
 test('resolve exact, available scoped IDs; put the intended provider and nested model ID on the fork, never on Main',()=>{
  const main={provider:'a',id:'v/one',name:'One'},alt={...main,provider:'b'},outside={provider:'excluded',id:'v/two',name:'Two'};
  let available=[main,alt,outside];const c={model:main,cwd:'/example',modelRegistry:{getAvailable:()=>available},scopedModels:[{model:alt,thinkingLevel:'low'}],sessionManager:{getSessionDir:()=>'/sessions'}};
- assert.deepEqual(modelDirectory(c).models.map(r=>r.ref),['a/v/one','b/v/one']);assert.deepEqual(modelDirectory(c,'b/v').models.map(r=>r.ref),['b/v/one']);assert.equal(requireRoleModel(c).ref,'a/v/one');
- assert.throws(()=>requireRoleModel(c,'v/one'));assert.throws(()=>requireRoleModel(c,'excluded/v/two'));
- const selected=requireRoleModel(c,'b/v/one'),launch=launchSpec({getThinkingLevel:()=> 'high'},c,'child.jsonl',['read'],'/profile',selected,'/installed/pi.js');
+ const rows=()=>roleModels(c,(_m,pin)=>({levels:['off','low','high'],thinking:pin??'off'}));
+ assert.deepEqual(modelDirectory(rows(),true).models.map(r=>r.ref),['a/v/one','b/v/one']);assert.deepEqual(modelDirectory(rows(),true,'b/v').models.map(r=>r.ref),['b/v/one']);assert.equal(requireRoleModel(rows()).ref,'a/v/one');
+ assert.throws(()=>requireRoleModel(rows(),'v/one'));assert.throws(()=>requireRoleModel(rows(),'excluded/v/two'));assert.throws(()=>requireRoleModel(rows(),'main','max'));assert.equal(requireRoleModel(rows(),'b/v/one','high').thinking,'high');
+ const selected=requireRoleModel(rows(),'b/v/one'),launch=launchSpec({getThinkingLevel:()=> 'high'},c,'child.jsonl',['read'],'/profile',selected,'/installed/pi.js');
  assert.deepEqual(launch.argv.slice(-6),['--provider','b','--model','v/one','--thinking','low']);assert.deepEqual(c.model,main);
- available=[main,outside];assert.throws(()=>requireRoleModel(c,selected.ref));
- assert.equal(modelJob('--model '+modelToken('local/a model')+' Short job').model,'local/a model');available=[];assert.throws(()=>requireRoleModel(c,'main'));
- assert.deepEqual(modelJob('--model b/v/one Review --model literally'),{model:'b/v/one',job:'Review --model literally'});assert.deepEqual(modelJob('Review --model main'),{job:'Review --model main'});assert.throws(()=>modelJob('--model'));
+ available=[main,outside];assert.throws(()=>requireRoleModel(rows(),selected.ref));
+ assert.equal(modelJob('--model '+modelToken('local/a model')+' Short job').model,'local/a model');available=[];assert.throws(()=>requireRoleModel(rows(),'main'));
+ assert.deepEqual(modelJob('--model b/v/one Review --model literally'),{model:'b/v/one',job:'Review --model literally'});assert.deepEqual(modelJob('Review --model main'),{job:'Review --model main'});assert.throws(()=>modelJob('--model'));assert.deepEqual(modelJob('--thinking low --model main Keep --thinking literal'),{thinking:'low',model:'main',job:'Keep --thinking literal'});assert.throws(()=>modelJob('--thinking --model main'));
 });
 
 test('the live feed shares prompt and answer text, not tools, aborted replies, hidden thinking, images or return notes',()=>{
