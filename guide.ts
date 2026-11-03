@@ -38,7 +38,7 @@ export function roleCompletions(raw,s){
 export function roleHint(draft,s){
   if(!/^\/role(?:\s|$)/.test(draft))return null;
   const raw=draft.slice(5).trimStart(), [first='', second='']=raw.trimEnd().split(/\s+/), a=first.toLowerCase(), child=s.mode==='role', rows=children(s);
-  if(!a)return child?['/role help',linked(s)?'Send a note: /role send main <message>':'Disconnected · chat here, or open a new role from Main.']:['/role [name] [job]', 'Default: Critic · Space for choices · /role help'];
+  if(!a)return child?['/role help',linked(s)?'Send a note: /role send main <message>':'Disconnected · chat here, or open a new role from Main.']:['/role [name] [job]', 'Default: Critic · ↑/↓ choose · Tab fills · Esc dismisses'];
   if(a==='help')return ['/role help [topic]','Space for topics; Enter shows the guide.'];
   if(a==='send'){
     if(child&&!linked(s))return ['/role status','Disconnected: no note can be sent.'];
@@ -60,5 +60,5 @@ export function roleHelp(s,raw=''){
     if(child&&t==='stop')return '/role stop\nDisconnect this role. Its conversation stays open.';
     const [,usage,details]=topics[t];return `${usage}\n${details}${t==='send'?'\nExample: /role send '+(children(s)[0]?.name||'Critic')+' What should I double-check?':''}`;}
   const list=child?[...(linked(s)?['/role send main <message>  ·  Leave a note','/role stop  ·  Disconnect this role']:['No live link to Main. Open a fresh role there to reconnect.']),'/role status  ·  Check this link']:['/role  ·  Open a Critic beside Main','/role Notes  ·  Track decisions','/role Research  ·  Check evidence','/role <name> [job]  ·  Give a role your own job','/role --work <name> [job]  ·  Allow workspace changes','/role send <name | all> <message>  ·  Address linked roles','/role inbox  ·  Read pending notes','/role status  ·  Inspect links','/role stop <name>  ·  Disconnect, keep the pane'];
-  return [...list,'','Type a space for choices. ↑/↓ highlight; Tab fills the draft.','/role help send  ·  Messaging examples'].join('\n');
+  return [...list,'','Type /role to see choices. ↑/↓ highlight; Tab fills the draft.','/role help send  ·  Messaging examples'].join('\n');
 }

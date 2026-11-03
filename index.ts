@@ -1,12 +1,13 @@
 import { SessionManager, getAgentDir, getMarkdownTheme, type ExtensionAPI, type ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
-import { Markdown, truncateToWidth, visibleWidth, wrapTextWithAnsi } from '@earendil-works/pi-tui';
+import { Markdown, truncateToWidth, visibleWidth, wrapTextWithAnsi, type TUI } from '@earendil-works/pi-tui';
 import { readFileSync } from 'node:fs';
 import { connect, listen } from './wire.mjs';
 import { OWNER, NOTE, INBOX, spec, message, observation, fork, here, roleTools, launchSpec, split, makeNote } from './host.mjs';
 
 import { responseGuide, excerpt, template } from './presentation.mjs';
-import { roleCompletions, roleHelp, roleHint } from './guide.mjs';
+import { roleCompletions, roleHelp, roleHint } from './guide.ts';
+import { commandMenus, type CommandMenu } from './command-menu.ts';
 
 const WATCH = 'temporary-role.observation', DIRECT = 'temporary-role.direct';
 type Ctx = ExtensionContext;
@@ -147,25 +148,22 @@ export default function temporaryRole(pi:ExtensionAPI) {
     childState='disconnected'; statusLine();
     // Pi extensions have argument completion, but no inline placeholder setter. Render
     // dim syntax beside the native editor, without replacing it or modifying its draft.
-    if(c.mode==='tui') c.ui.setWidget('temporary-role.guide',(_tui,theme)=>({
-      invalidate(){}, render(width){
-        const draft=c.ui.getEditorText(); if(!draft.startsWith('/role'))return [];
-        const hint=roleHint(draft,info()); if(!hint)return [];
-        const [syntax,tip]=hint, line=theme.fg('dim',syntax)+'  '+theme.fg('muted',tip);
-        return visibleWidth(line)<=width?[line]:[truncateToWidth(theme.fg('dim',syntax),width),truncateToWidth(theme.fg('muted',tip),width)];
-      },
-    }),{placement:'aboveEditor'});
-    if(c.mode==='tui') c.ui.addAutocompleteProvider(current=>{
-      // Tab with a closed list normally asks Pi for *files*. Keep that fallback for
-      // prose, but show our argument choices when a role target/verb is expected.
-      const argsAt=(lines:string[],line:number,col:number)=>lines.length===1 && line===0 && col===lines[0].length ? /^\/role (.*)$/.exec(lines[0])?.[1] : undefined;
-      return {triggerCharacters:current.triggerCharacters, async getSuggestions(lines,line,col,opts){
-        const prefix=argsAt(lines,line,col); const items=opts.force && prefix!==undefined ? roleCompletions(prefix,info()) : null;
-        return items ? {items,prefix:prefix!} : current.getSuggestions(lines,line,col,opts);
-      },applyCompletion:(...args)=>current.applyCompletion(...args),shouldTriggerFileCompletion(lines,line,col){
-        const prefix=argsAt(lines,line,col);return (prefix!==undefined && !!roleCompletions(prefix,info())) || (current.shouldTriggerFileCompletion?.(lines,line,col)??true);
-      }};
-    });
+    if(c.mode==='tui') {
+      let screen:(TUI & {getFocusedComponent?():object|null})|undefined;
+      c.ui.setWidget('temporary-role.guide',(tui,theme)=>{
+        screen=tui;
+        return {invalidate(){}, render(width){
+          const draft=c.ui.getEditorText(); if(!draft.startsWith('/role'))return [];
+          const hint=roleHint(draft,info()); if(!hint)return [];
+          const [syntax,tip]=hint, line=theme.fg('dim',syntax)+'  '+theme.fg('muted',tip);
+          return visibleWidth(line)<=width?[line]:[truncateToWidth(theme.fg('dim',syntax),width),truncateToWidth(theme.fg('muted',tip),width)];
+        }};
+      },{placement:'aboveEditor'});
+      const menus=new Map<string,CommandMenu>([['role',{choices:p=>roleCompletions(p,info()),bare:()=>me?'help':'Critic'}]]);
+      // Only opt in a /widget command owned by the installed companion.
+      pi.events.emit('herdr-role:command-menu.v1',{inChild:()=>!!me,widget:(menu:CommandMenu)=>menus.set('widget',menu)});
+      c.ui.addAutocompleteProvider(current=>commandMenus(current,menus,()=>screen?.getFocusedComponent?.(),()=>c.ui.getEditorText()));
+    }
     if(!me) return;
     const ticketPath=pi.getFlag('role-link'); if(typeof ticketPath!=='string') return;
     const epoch=generation;
@@ -261,7 +259,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
     if(r.recipients)return r.recipients.map((v:any)=>`${v.name}: ${v.error||v.state}`).join('\n');
     return r.state;
   }
-  pi.registerCommand('role',{description:'[name] [job] · Open a Critic or name a role. Space for choices; /role help for examples.',
+  pi.registerCommand('role',{description:'[name] [job] · Open a Critic or name a role. ↑/↓ to choose, Tab to fill; /role help for examples.',
     getArgumentCompletions:prefix=>ctx?roleCompletions(prefix,info()):null,
     handler:async(raw,c)=>{
     const [first='',rest='']=(raw.trim().match(/^(\S+)\s*([\s\S]*)$/)||[]).slice(1);
