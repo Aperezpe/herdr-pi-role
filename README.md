@@ -51,9 +51,15 @@ For watching roles, the chosen provider receives the fork and subsequent watched
 
 By default the role can inspect files using the reading tools available in Main. For a job that needs to change files or run commands, opt in when you open it: `/role --work Notes Keep agreed decisions in notes.md`. Work roles share the project directory; give each writer its own files. These are Pi tool limits, not an operating-system sandbox. The extension needs normal local permissions and does not transmit messages to an external messaging service.
 
+## Use the role pane from the keyboard
+
+In a linked terminal role, type and press **Enter** to ask privately. Press **↑/↓** in a single-line draft to select a finished reply. A preview under the editor shows what would be sent; **PgUp/PgDn** reads longer previews. **Enter** sends only the selected reply to Main’s inbox, once. New arrivals don’t move your selection. **Esc** or editing returns to writing without clearing your draft. Multiline drafts, slash commands and autocomplete keep Pi’s normal keys. Main’s editor is unchanged.
+
+The last twelve finished answers from this link are selectable, not inherited history, tool output or partial answers. Replies over 2,400 characters can be inspected but not forwarded. For automation inside the linked role, use temporary_role with action **replies**, then **forward** with the exact reply number on explicit request. Manual `/role send main …` still works.
+
 ## Read a role’s reply
 
-Critic uses **Risk → Why it matters → Next check**. Notes separates **Decided**, **Still open**, and **Next action**. Research uses **Finding**, **Evidence**, and **Unknown**. Other roles start with **Finding → Basis → Next step**. These are writing instructions for the role, not fabricated fields or a rigid schema: the model can omit empty sections or honor a different format you request.
+Critic puts the specific risk in the headline, emphasizes the decisive condition in the explanation, then gives a **Next check**. Notes separates **Decided**, **Still open**, and **Next action**. Research uses **Finding**, **Evidence**, and **Unknown**. Other roles start with **Finding → Basis → Next step**. These are writing instructions for the role, not fabricated fields or a rigid schema: the model can omit empty sections or honor a different format you request.
 
 A watched turn shows its origin and a two-line excerpt. Expand it with Pi’s expand-output shortcut to read the forwarded Markdown. Leading Pi skill attachments are identified by name rather than repeated in full; long observations retain the beginning and the end. Main’s original message is unchanged.
 

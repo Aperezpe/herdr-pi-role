@@ -3,7 +3,9 @@ import { Type } from 'typebox';
 import { Markdown, Text, truncateToWidth, visibleWidth, wrapTextWithAnsi, type TUI } from '@earendil-works/pi-tui';
 import { readFileSync } from 'node:fs';
 import { connect, listen } from './wire.mjs';
-import { OWNER, NOTE, INBOX, spec, message, observation, fork, here, roleTools, split, makeNote } from './host.mjs';
+import { stripVTControlCharacters } from 'node:util';
+import { replyTray } from './reply-tray.ts';
+import { safeText, OWNER, NOTE, INBOX, spec, message, observation, fork, here, roleTools, split, makeNote } from './host.mjs';
 
 import { responseGuide, excerpt, template } from './presentation.mjs';
 import { roleCompletions, roleHelp, roleHint } from './guide.ts';
@@ -47,6 +49,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
   let ctx:Ctx, generation = 0, opening = false;
   let me:Identity|undefined, parent:Peer|undefined, childState = 'disconnected';
   let waiting:Item[] = [], omitted = 0, scheduled = false, dispatching = false, maySend = false;
+  let tray:ReturnType<typeof replyTray>|undefined;
   let inbox = new Map<string, ReturnType<typeof makeNote>>();
   const sid = () => ctx.sessionManager.getSessionId();
   let picker:AbortController|undefined, screen:(TUI & {getFocusedComponent?():object|null})|undefined;
@@ -96,7 +99,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
     return {id:n.id,state:'in Main’s inbox; no turn started'};
   }
   function disconnectChild(reason:string) {
-    childState=reason; const p=parent; parent=undefined; p?.close(); waiting=[]; omitted=0; maySend=false; statusLine();
+    childState=reason; tray?.clear(); tray=undefined; const p=parent; parent=undefined; p?.close(); waiting=[]; omitted=0; maySend=false; statusLine();
   }
   function stopAll(why:string) {
     generation++; picker?.abort(); opening=false; for(const role of roles.values()) if(active(role)) role.end?.(why);
@@ -148,6 +151,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
       }
       if(epoch!==generation||sid()!==origin)throw Error('Main changed during role selection. No pane opened.');
       const loc=await here(pi,c), model=requireRoleModel(catalogue(c),requested,thinking), cli=roleCli(process.argv[1]);
+      const delivered=new Map<number,string>();let newest=0;
       channel=await listen((hello:any,peer:Peer)=>{
         if(!link || !active(link) || epoch!==generation || hello.child!==link.owner.id || hello.parent!==link.owner.parent || hello.parent!==sid() || hello.model!==link.owner.model || hello.thinking!==link.owner.thinking) throw Error('Wrong or stale role identity.');
         clearTimeout(timer); link.peer=peer; link.state='watching'; signalReady(peer); statusLine();
@@ -156,6 +160,11 @@ export default function temporaryRole(pi:ExtensionAPI) {
       },(method:string,data:any)=>{
         if(!link||link.state!=='watching'||epoch!==generation) throw Error('This role link has ended.');
         if(method==='history'&&link.owner.name.toLowerCase()==='historian'&&pi.getActiveTools().includes('historian'))return history(ctx.sessionManager.getBranch(),data);
+        if(method==='reply-note'){
+          const id=data?.id;if(!Number.isSafeInteger(id)||id<1||id<=newest-12)throw Error('Reply expired.');
+          const prior=delivered.get(id);if(prior)return {id:prior,state:'already received'};
+          const receipt=receiveNote(link.owner,data.text);newest=Math.max(id,newest);delivered.set(id,receipt.id);for(const n of delivered.keys())if(n<=newest-12)delivered.delete(n);return receipt;
+        }
         if(method==='note') return receiveNote(link.owner,data?.text);
         throw Error('Unknown operation for Main.');
       },()=>link?.end?.('disconnected'));
@@ -226,7 +235,9 @@ export default function temporaryRole(pi:ExtensionAPI) {
       parent=peer;
       const welcome=await peer.call('hello',{token:t.token,child:me.id,parent:me.parent,model:t.model,thinking:pi.getThinkingLevel()});
       if(epoch!==generation||parent!==peer)return;
-      childState='watching Main'; omitted+=welcome.skipped; for(const item of welcome.pending) enqueue('watch',item);
+      childState='watching Main';
+      if(c.mode==='tui')tray=replyTray(c,(id,text)=>peer.call('reply-note',{id,text}),()=>parent===peer&&epoch===generation&&childState==='watching Main');
+      omitted+=welcome.skipped; for(const item of welcome.pending) enqueue('watch',item);
       statusLine(); deliverSoon(); c.ui.notify(`${me.name.toLowerCase()==='historian'?'Historian is ready for questions.':me.name+' is watching Main.'} ${me.job} Replies stay here.`, 'info');
     } catch(e) { if(epoch===generation) { disconnectChild('disconnected'); c.ui.notify(`No live link to Main (${errorText(e)}). This conversation still works.`, 'warning'); } }
   });
@@ -246,7 +257,9 @@ export default function temporaryRole(pi:ExtensionAPI) {
   });
   pi.on('message_end',(e)=>{
     const m=e.message as any;
-    if(me) return;
+    if(me){if(tray&&m.role==='assistant'&&['stop','length'].includes(m.stopReason)&&!m.content.some((b:any)=>b.type==='toolCall')){
+      const text=safeText(stripVTControlCharacters(m.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n')));if(text)tray.add(text);
+    }return;}
     if(m.role==='custom' && m.customType===INBOX) { for(const id of m.details?.ids||[]) inbox.delete(id); statusLine(); return; }
     if(!roles.size) return;
     const seen=observation(m); if(!seen) return;
@@ -272,6 +285,11 @@ export default function temporaryRole(pi:ExtensionAPI) {
     if(action==='help')return {guide:roleHelp(info(),p.topic)};
     if(action==='status')return info();
     if(action==='models')return directory(c,p.query);
+    if(action==='replies'||action==='forward'){
+      if(!tray)throw Error('Use this operation inside a linked terminal role. For a widget use role_widget.');
+      if(action==='replies'){const rows=tray.list();if(p.reply!==undefined){const item=rows.find(v=>v.id===p.reply);if(!item)throw Error('Reply unavailable. List current replies.');return {reply:item};}return {replies:rows.map(v=>({...v,text:v.text.slice(0,200),length:v.text.length}))};}
+      if(!maySend)throw Error('Observed turns cannot forward replies. Ask the role directly.');return tray.forward(p.reply);
+    }
     if(action==='open')return startRole(p.name,p.job,p.work===true,c,undefined,{model:p.model,thinking:p.thinking,command:human?'role':undefined});
     if(action==='inbox') { if(me)throw Error('Only Main has a return inbox.'); return {notes:[...inbox.values()]}; }
     const target=p.target||'';
@@ -324,7 +342,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
       const r=await operate(action,p,c,true); if(r.cancelled)return; c.ui.notify(present(action,r),r.ok===false?'warning':'info');
     } catch(e){ c.ui.notify(errorText(e),'error'); }
   }});
-  pi.registerTool({name:'temporary_role',label:'Temporary roles',description:'Use help for instructions, models(query?) for configured provider/model IDs; open can select a model and supported thinking level for this role only (see models.levels). Status/inbox inspect this session. On explicit request, open a visible named temporary role, send or stop. Main send/stop targets a status ID (send also accepts all); a child sends only to main. A receipt means queued, not answered. Never send ordinary replies automatically.',parameters:Type.Object({
-    action:Type.Union(['help','models','status','inbox','open','send','stop'].map(v=>Type.Literal(v))), model:Type.Optional(Type.String()),thinking:Type.Optional(Type.String()),query:Type.Optional(Type.String()),topic:Type.Optional(Type.String()), name:Type.Optional(Type.String()),job:Type.Optional(Type.String()),work:Type.Optional(Type.Boolean()),target:Type.Optional(Type.String()),message:Type.Optional(Type.String()),
+  pi.registerTool({name:'temporary_role',label:'Temporary roles',description:'Use help for instructions, models(query?) for configured provider/model IDs; open can select a model and supported thinking level for this role only (see models.levels). Status/inbox inspect this session. On explicit request, open a visible named temporary role, send or stop. Main send/stop targets a status ID (send also accepts all); a child sends only to main. In a linked terminal role, replies lists recent reply IDs (reply selects full text); forward(reply) sends that exact reply once, only on explicit request. A receipt means queued, not answered. Never send ordinary replies automatically.',parameters:Type.Object({
+    action:Type.Union(['help','models','status','inbox','open','send','stop','replies','forward'].map(v=>Type.Literal(v))), reply:Type.Optional(Type.Integer({minimum:1})),model:Type.Optional(Type.String()),thinking:Type.Optional(Type.String()),query:Type.Optional(Type.String()),topic:Type.Optional(Type.String()), name:Type.Optional(Type.String()),job:Type.Optional(Type.String()),work:Type.Optional(Type.Boolean()),target:Type.Optional(Type.String()),message:Type.Optional(Type.String()),
   }),execute:async(_id,p,_signal,_update,c)=>{ const result=await operate(p.action,p,c); return {content:[{type:'text',text:JSON.stringify(result)}],details:result,...(result.ok===false?{isError:true}:{})}; }});
 }
