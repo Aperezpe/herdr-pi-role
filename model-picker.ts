@@ -17,8 +17,8 @@ export async function pickRoleModel(ctx:ExtensionContext, name:string, mode:'dra
     const finish=(choice:Choice|null)=>{if(!closed){closed=true;signal.removeEventListener('abort',cancel);done(choice);}};
     const cancel=()=>finish(null);
     function filter(){
-      const q=input.getValue().trim(),matches=q?fuzzyFilter(rows,q,r=>`${r.ref} ${r.name}${r.main?' same as Main':''}`):rows;
-      list=new SelectList(matches.map(r=>({value:r.ref,label:r.main?'Same as Main':r.id,description:r.main?r.ref:r.provider})),7,getSelectListTheme(),{minPrimaryColumnWidth:14,maxPrimaryColumnWidth:36});
+      const q=input.getValue().trim(),matches=q?fuzzyFilter(rows,q,r=>`${r.ref} ${r.name}${r.main?' same as Main':''}${r.fast?' fast default':''}`):rows;
+      list=new SelectList(matches.map(r=>({value:r.ref,label:r.fast?`${r.id} · fast default`:r.main?'Same as Main':r.id,description:r.fast?`${r.provider} · quick support`:r.main?r.ref:r.provider})),7,getSelectListTheme(),{minPrimaryColumnWidth:14,maxPrimaryColumnWidth:36});
       list.onCancel=cancel;list.onSelect=item=>{const row=byRef.get(item.value)!;finish({ref:row.ref,thinking:overrides.get(row.ref)??row.thinking});};list.onSelectionChange=describe;
       describe();
       slot.clear();slot.addChild(list);

@@ -1,7 +1,8 @@
 import {CustomEditor,type ExtensionContext} from '@earendil-works/pi-coding-agent';
 import {matchesKey,isKeyRelease,wrapTextWithAnsi} from '@earendil-works/pi-tui';
+import {items} from './presentation.mjs';
 
-type Card={id:number,text:string,state:'ready'|'sending'|'sent'|'unconfirmed'};
+type Card={id:number,text:string,state:'ready'|'sending'|'sent'|'unconfirmed',item?:number};
 export function replyTray(c:ExtensionContext,deliver:(id:number,text:string)=>Promise<any>,live:()=>boolean){
  const cards:Card[]=[];let serial=0,selected:number|null=null,page=0,pages=1,status='',armedDraft='',refresh=()=>{};
  const current=()=>cards.find(v=>v.id===selected);
@@ -36,7 +37,8 @@ export function replyTray(c:ExtensionContext,deliver:(id:number,text:string)=>Pr
    const card=current();if(!card)return wrap('Selected reply expired · ↑/↓ select again · Esc draft');
    const lines=card.text.split('\n').flatMap(s=>wrap(s.replace(/\t/g,'    '))),size=4;pages=Math.max(1,Math.ceil(lines.length/size));page=Math.min(page,pages-1);
    const action=card.state==='sent'?'Sent to Main':card.state==='sending'?'Sending…':card.text.length>2400?'Too long to send':'Enter sends to Main';
-   return [...wrap(`Reply ${card.id} · ${action}`).map(v=>theme.fg('accent',theme.bold(v))),...lines.slice(page*size,(page+1)*size),...wrap((pages>1?`PgUp/PgDn ${page+1}/${pages} · `:'')+'↑/↓ select · Esc draft').map(v=>theme.fg('muted',v)),...(status?wrap(status):[])];
+   return [...wrap(`${card.item?'Item '+card.item:'Whole reply'} · ${action}`).map(v=>theme.fg('accent',theme.bold(v))),...lines.slice(page*size,(page+1)*size),...wrap((pages>1?`PgUp/PgDn ${page+1}/${pages} · `:'')+'↑/↓ select · Esc draft').map(v=>theme.fg('muted',v)),...(status?wrap(status):[])];
  }};},{placement:'belowEditor'});
- return {add(text:string){cards.push({id:++serial,text,state:'ready'});if(cards.length>12)cards.shift();refresh();},list(){return cards.map(v=>({...v}));},forward,clear(){cards.length=0;clear();refresh();}};
+ // Item cards go in reverse so the first ↑ selects item 1 of the newest reply and further ↑ walks down its list (John, 2026-11-07).
+ return {add(text:string,name='Role'){cards.push({id:++serial,text,state:'ready'});for(const i of items(text).reverse())cards.push({id:++serial,text:`${name} ${i.n}: ${i.text}`,state:'ready',item:i.n});while(cards.length>24)cards.shift();refresh();},list(){return cards.map(v=>({...v}));},forward,clear(){cards.length=0;clear();refresh();}};
 }

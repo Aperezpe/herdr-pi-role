@@ -1,15 +1,42 @@
 // Prompts control prose; the UI controls attribution and quote length. Never invent fields or change a model's answer to make it fit.
 const formats={
-  historian:['Answer','Evidence','Unknown'],critic:['Risk','Why it matters','Next check'],notes:['Decided','Still open','Next action'],research:['Finding','Evidence','Unknown'],
+  historian:['Answer','Evidence','Unknown'],critic:['Grade','Skipped decisions','Better approach'],notes:['Decided','Still open','Next action'],research:['Finding','Source','Unknown'],
 };
 export function template(name){return formats[String(name).toLowerCase()]??['Finding','Basis','Next step'];}
+// Support roles are quick visual support for the person talking to Main (John, 2026-11-07): dense, rated,
+// glanceable, and every finding numbered so one piece can be sent to Main on its own (/role send main #2).
+const VOCAB={
+ critic:'Grade the request or answer in the verdict (🟢 A / 🟡 B / 🟠 C / 🔴 D, then a 3–8 word reason). Items: ❓ a decision the request skipped or Main assumed, phrased as the exact question (say what Main assumed); ⚠️ a risk or unverified claim. Never list what is fine or settled, and never call Main’s choice clear or good. End with one item starting ➡️: the better approach or the smallest check.',
+ notes:'Verdict: what changed in this exchange. Items: ✅ decided (say who decided), ❓ still open, ⏭️ next action. Never invent an owner or deadline.',
+ research:'Verdict: the answer in a few words. Items: 🔎 a finding with its source (URL or file path) and trust ★★★ / ★★☆ / ★☆☆; ❔ what is still unknown.',
+ historian:'Verdict: the answer. Items: 📜 evidence with its entry ID and speaker; ❔ what the history does not show.',
+};
+const JOB={
+ critic:'Be adversarial, not agreeable. Your default is to find what is wrong: a vague or underspecified prompt, an unsupported assumption, a risky plan or an unverified claim. Verify against the actual files with your tools before asserting a problem; never just speculate. Never praise. Only say there is no concern after you have checked and found none.',
+ notes:'Record decisions as decisions only when someone actually settles them.',
+ research:'Use web search and fetch tools for outside facts, and read local files for project facts, before answering. Separate what you verified from what was merely said; if no source is available, label the gap.',
+};
 export function responseGuide(name){
- const fields=template(name);
- const job=({critic:'Lead with one consequential risk. Name the actual assumption, not a general warning. Give one check that could disprove it. If there is no new concern, say so in one line.',notes:'Record decisions as decisions only when someone actually settles them. Attribute them. Keep suggestions under Still open; never invent an owner or deadline.',research:'Separate what you verified from what was merely said. Cite the actual source or observation; if none is available, label the gap.'})[String(name).toLowerCase()]??'Lead with the result of your assigned job, then its basis and a useful next step.';
- const brief=String(name).toLowerCase()==='critic'
-   ? 'Make the headline the risk itself (not “Risk” or “Critique”). Explain the trigger and consequence in one short paragraph. Finish with “## Next check” and the smallest test that would settle it. If multiple steps are actually needed, use a short numbered list.'
-   : 'Make the headline the answer, decision or finding itself. Follow with the evidence. Use only the relevant sections: '+fields.join(', ')+'.';
- return `Write for a narrow Markdown pane. ${job} ${brief} Start a substantive answer with a single # followed by your conclusion in 5–10 words, not a topic label. Then explain how it happens. Within that explanation, surround the few words that matter most with double asterisks for bold. Emphasize a specific trigger, consequence, or decision, not a whole sentence or a standalone label. Separate the next section with a blank line and a ## heading. Use numbered steps only for a sequence. Omit unnecessary sections. Never describe the template. No invented facts, decorative icons, tables, greetings, or generic recap. Prefer under 120 words. For a trivial reply, just answer. Honor an explicitly requested format.`+(String(name).toLowerCase()==='critic'? '\nHere is a finished critique about a DIFFERENT problem, to illustrate the typography and level of specificity. Use its shape, not its subject:\n\n# A retry can charge the customer twice\n\nIf the payment succeeds but its response is lost, retrying can create **a second charge** for the same order.\n\n## Next check\nDrop the response after the first charge, retry, and verify the ledger still shows one payment.':'');
+ const key=String(name).toLowerCase(),job=JOB[key]??'Do your assigned job.';
+ const vocab=VOCAB[key]??'Verdict: your result, led by a status emoji (🟢 / 🟡 / 🔴). Items: one finding each, led by a fitting emoji (✅ ❓ ⚠️ 🔎 ⏭️).';
+ return `You are quick visual support for the person working in Main, shown in a narrow pane. They glance at you between prompts, so be dense and scannable, never conversational. ${job}\n`+
+  'Format every substantive reply exactly like this:\n- First line: a single # heading that is the verdict, led by a status emoji.\n- Then a numbered Markdown list (1. 2. 3.), one line per item, each starting with its emoji. At most 6 items of about 12 words. Put the decisive words in **bold**.\n- Nothing else: no paragraphs, preamble, recap, tables or sign-off. Each item must stand alone, because the person may send just that item to Main.\n'+
+  `${vocab}\nIf there is nothing new, reply with one line: 🟢 Nothing new. Never invent facts or ratings you can't support. Honor an explicitly requested format.`+
+  (key==='critic'?'\nShape example about a DIFFERENT problem (use its shape, not its subject):\n\n# 🟠 C · a retry can double-charge\n\n1. ⚠️ A lost response after success makes the retry **charge twice**\n2. ❓ Is the payment call **idempotent** per order?\n3. ➡️ Drop the first response, retry, check the ledger shows **one** charge':'');
+}
+// The numbered items of a reply: the pieces a person can send to Main on their own.
+export function items(text){
+ const out=[];
+ for(const line of String(text).split('\n')){const m=/^\s{0,3}(\d{1,2})[.)]\s+(\S.*)$/.exec(line);if(m)out.push({n:Number(m[1]),text:m[2].trim()});}
+ return out;
+}
+// "#2" or "#1,3" typed in a role pane names those items of its latest reply, labeled with the role.
+export function pickItems(text,ref,name){
+ const m=/^#\s*(\d{1,2}(?:\s*,\s*\d{1,2})*)\s*$/.exec(String(ref).trim());if(!m)return null;
+ const list=items(text);if(!list.length)throw Error('The latest reply has no numbered items. Send its words instead.');
+ const want=m[1].split(',').map(v=>Number(v.trim())),miss=want.filter(n=>!list.some(i=>i.n===n));
+ if(miss.length)throw Error(`No item ${miss.join(', ')} in the latest reply; it has ${list.map(i=>i.n).join(', ')}.`);
+ return want.map(n=>`${name} ${n}: ${list.find(i=>i.n===n).text}`).join('\n');
 }
 export function watchText(text,from){
  let body=text;const skills=[];

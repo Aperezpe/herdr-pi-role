@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { connect, listen } from './wire.mjs';
 import { stripVTControlCharacters } from 'node:util';
 import { replyTray } from './reply-tray.ts';
-import { safeText, OWNER, NOTE, INBOX, spec, message, observation, fork, here, roleTools, split, makeNote } from './host.mjs';
+import { safeText, OWNER, NOTE, INBOX, spec, message, observation, progressStep, fork, here, roleTools, split, makeNote } from './host.mjs';
 
-import { responseGuide, excerpt, template } from './presentation.mjs';
+import { responseGuide, excerpt, template, pickItems } from './presentation.mjs';
 import { roleCompletions, roleHelp, roleHint } from './guide.ts';
 import { commandMenus, type CommandMenu } from './command-menu.ts';
 import { getSupportedThinkingLevels, clampThinkingLevel } from '@earendil-works/pi-ai';
@@ -49,7 +49,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
   let ctx:Ctx, generation = 0, opening = false;
   let me:Identity|undefined, parent:Peer|undefined, childState = 'disconnected';
   let waiting:Item[] = [], omitted = 0, scheduled = false, dispatching = false, maySend = false;
-  let tray:ReturnType<typeof replyTray>|undefined;
+  let tray:ReturnType<typeof replyTray>|undefined, lastReply='';
   let inbox = new Map<string, ReturnType<typeof makeNote>>();
   const sid = () => ctx.sessionManager.getSessionId();
   let picker:AbortController|undefined, screen:(TUI & {getFocusedComponent?():object|null})|undefined;
@@ -123,7 +123,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
   }
   function enqueue(kind:'watch'|'direct', data:any) {
     if(!data || typeof data.text!=='string' || !data.text.trim()) throw Error('Empty role message.');
-    const item:Item={kind,from:kind==='watch' && data.from==='assistant'?'Main’s reply':kind==='watch'?'Main’s prompt':'Main',text:kind==='watch'?data.text.slice(0,4020):message(data.text)};
+    const item:Item={kind,from:kind==='watch' && data.from==='assistant'?'Main’s reply':kind==='watch' && data.from==='progress'?'Main’s progress so far':kind==='watch'?'Main’s prompt':'Main',text:kind==='watch'?data.text.slice(0,4020):message(data.text)};
     if(waiting.length>=24) {
       const i=waiting.findIndex(v=>v.kind==='watch');
       if(i>=0) { waiting.splice(i,1); omitted++; } else if(kind==='watch') { omitted++; return {state:'observation omitted; role busy'}; } else throw Error('Role queue is full. Message was not accepted.');
@@ -170,7 +170,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
       },()=>link?.end?.('disconnected'));
       if(epoch!==generation || c.sessionManager.getSessionId()!==sid()) throw Error('Main changed before the split.');
       if(s.name.toLowerCase()==='historian'&&!pi.getActiveTools().includes('historian'))throw Error('Enable the historian tool in Main before opening this role.');
-      const allowed=s.name.toLowerCase()==='historian'?['historian']:roleTools(pi,s.work), {owner,file}=fork(SessionManager,c,{...s,allowed,model:model.ref,thinking:model.thinking});
+      const allowed=s.name.toLowerCase()==='historian'?['historian']:roleTools(pi,s.work,s.name), {owner,file}=fork(SessionManager,c,{...s,allowed,model:model.ref,thinking:model.thinking});
       const launch=launchSpec(pi,c,file,allowed,getAgentDir(),model,cli);
       link={owner,state:'opening',ready,early:[],skipped:0};
       const r=link, ch=channel, life=new AbortController();
@@ -257,18 +257,32 @@ export default function temporaryRole(pi:ExtensionAPI) {
   });
   pi.on('message_end',(e)=>{
     const m=e.message as any;
-    if(me){if(tray&&m.role==='assistant'&&['stop','length'].includes(m.stopReason)&&!m.content.some((b:any)=>b.type==='toolCall')){
-      const text=safeText(stripVTControlCharacters(m.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n')));if(text)tray.add(text);
+    if(me){if(m.role==='assistant'&&['stop','length'].includes(m.stopReason)&&!m.content.some((b:any)=>b.type==='toolCall')){
+      const text=safeText(stripVTControlCharacters(m.content.filter((b:any)=>b.type==='text').map((b:any)=>b.text).join('\n')));if(text){lastReply=text;tray?.add(text,me.name);}
     }return;}
     if(m.role==='custom' && m.customType===INBOX) { for(const id of m.details?.ids||[]) inbox.delete(id); statusLine(); return; }
-    if(!roles.size) return;
+    if(!roles.size) { progress=[]; return; }
+    if(m.role==='user') progress=[];
+    const step=progressStep(m);
+    if(step){ progress.push(step); if(progress.length>=3 || ['aborted','error'].includes(m.stopReason)) flushProgress(); return; }
     const seen=observation(m); if(!seen) return;
+    if(seen.from==='assistant') flushProgress();
     for(const r of roles.values()) {
       if(r.owner.name.toLowerCase()==='historian')continue; // Answer on demand; no turns spent watching.
-      if(r.state==='opening') { if(r.early.length>=24) {r.early.shift(); r.skipped++;} r.early.push({kind:'watch',...seen}); }
-      else if(r.state==='watching') void r.peer!.call('watch',seen).catch(e=>{ if(active(r)) {r.end?.('delivery uncertain'); ctx.ui.notify(`${r.owner.name}: ${errorText(e)}`, 'warning');} });
+      watch(r,seen);
     }
   });
+  // Critics review work in progress: batched tool steps, plus a note when Main stops early.
+  let progress:string[]=[];
+  function flushProgress(){
+    if(!progress.length) return;
+    const seen={from:'progress',text:progress.join('\n').slice(0,4000)}; progress=[];
+    for(const r of roles.values()) if(r.owner.name.toLowerCase()==='critic') watch(r,seen);
+  }
+  function watch(r:Link,seen:{from:string;text:string}){
+    if(r.state==='opening') { if(r.early.length>=24) {r.early.shift(); r.skipped++;} r.early.push({kind:'watch',...seen}); }
+    else if(r.state==='watching') void r.peer!.call('watch',seen).catch(e=>{ if(active(r)) {r.end?.('delivery uncertain'); ctx.ui.notify(`${r.owner.name}: ${errorText(e)}`, 'warning');} });
+  }
   pi.on('agent_settled',()=>{ dispatching=false; deliverSoon(); });
   pi.on('tool_call',(e)=>{
     if(inlineHistorian&&e.toolName!=='historian')return {block:true,reason:'Historian can only inspect the active session branch.'};
@@ -299,8 +313,10 @@ export default function temporaryRole(pi:ExtensionAPI) {
       return {state:'link stopped; the pane and Pi history remain'};
     }
     if(action!=='send')throw Error('Unknown operation.');
-    const text=message(p.message);
+    let text=message(p.message);
     if(me) {
+      // '#2' or '#1,3' sends just those numbered items of this role's latest reply.
+      const picked=pickItems(lastReply,text,me.name);if(picked)text=picked;
       if(target.toLowerCase()!=='main')throw Error('From a role, address main. No sibling or cross-session delivery.');
       if(!human&&!maySend)throw Error('Observing Main cannot send to Main. Ask directly in the role pane or use /role send main.');
       if(!parent || childState!=='watching Main')throw Error('Main is disconnected. Note not sent.');

@@ -2,7 +2,7 @@ import {history} from '../history.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { statSync, readFileSync, existsSync } from 'node:fs';
-import { observation, spec, unfinished } from '../host.mjs';
+import { observation, spec, unfinished, roleTools, progressStep } from '../host.mjs';
 import { listen, connect } from '../wire.mjs';
 import { modelJob, modelToken, roleModels, modelDirectory, requireRoleModel } from '../models.ts';
 import { launchSpec } from '../role-launch.ts';
@@ -17,6 +17,17 @@ test('resolve exact, available scoped IDs; put the intended provider and nested 
  available=[main,outside];assert.throws(()=>requireRoleModel(rows(),selected.ref));
  assert.equal(modelJob('--model '+modelToken('local/a model')+' Short job').model,'local/a model');available=[];assert.throws(()=>requireRoleModel(rows(),'main'));
  assert.deepEqual(modelJob('--model b/v/one Review --model literally'),{model:'b/v/one',job:'Review --model literally'});assert.deepEqual(modelJob('Review --model main'),{job:'Review --model main'});assert.throws(()=>modelJob('--model'));assert.deepEqual(modelJob('--thinking low --model main Keep --thinking literal'),{thinking:'low',model:'main',job:'Keep --thinking literal'});assert.throws(()=>modelJob('--thinking --model main'));
+});
+
+test('Research gets installed web tools; other roles keep file-only reads; critics see tool steps without output',()=>{
+  const pi={getActiveTools:()=>['read','grep','find','ls','bash','web_search'],getAllTools:()=>['fetch_content','get_search_content','web_search'].map(name=>({name}))};
+  assert.deepEqual(roleTools(pi,false,'Research'),['read','grep','find','ls','web_search','fetch_content','get_search_content']);
+  assert.deepEqual(roleTools(pi,false,'Critic'),['read','grep','find','ls']);
+  assert.match(spec('Critic').job,/adversarial/);assert.match(spec('Research').job,/search the web/);
+  const step=progressStep({role:'assistant',stopReason:'toolUse',content:[{type:'thinking',thinking:'PRIVATE'},{type:'text',text:'Looking at bookings.'},{type:'toolCall',name:'bash',arguments:{command:'grep -rn minimum src'}}]});
+  assert.equal(step,'Looking at bookings.\n- bash: grep -rn minimum src');
+  assert.match(progressStep({role:'assistant',stopReason:'aborted',content:[]}),/interrupted/);
+  assert.equal(progressStep({role:'assistant',stopReason:'stop',content:[{type:'text',text:'Done.'}]}),undefined);
 });
 
 test('the live feed shares prompt and answer text, not tools, aborted replies, hidden thinking, images or return notes',()=>{

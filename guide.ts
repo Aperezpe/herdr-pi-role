@@ -1,7 +1,7 @@
 // All guidance is local to the pane. Completion values replace Pi's entire argument prefix.
 const presets = [['Critic','Challenge assumptions'],['Notes','Track decisions and open questions'],['Research','Check claims against evidence'],['Historian','Search Main’s history on demand']];
 const topics = {
-  open: ['Open a role', '/role [NAME] [one-sentence job]', 'Choose a role, then its model. /role Notes --model main uses Main’s model without a picker; --model provider/model pins an exact choice. You can also name your own role. The fork starts here and watches future Main prompts and answers.'],
+  open: ['Open a role', '/role [NAME] [one-sentence job]', 'Choose a role, then its model. The fast default (Haiku) is highlighted, because roles are quick visual support. /role Notes --model fast takes it without a picker; --model main uses Main’s model; --model provider/model pins an exact choice. You can also name your own role. The fork starts here and watches future Main prompts and answers.'],
   work: ['Allow workspace tools', '/role --work Notes Keep decisions in notes.md', 'Opt in at creation. The role can use write, edit and shell tools available in Main, in the same project. Otherwise it only has inspection and messaging tools.'],
   send: ['Send a message', '/role send TARGET MESSAGE', 'A direct request goes to the named role. Its answer stays in its pane. Use all to broadcast. From a linked role, send main queues a note; it never interrupts Main.'],
   inbox: ['Read pending notes', '/role inbox', 'Inspect notes without a model call. They join Main’s context on its next user prompt. Inspecting does not consume them.'],
