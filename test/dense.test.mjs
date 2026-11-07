@@ -14,6 +14,8 @@ test('every role is told to answer as a verdict plus numbered, emoji-led finding
     assert.match(g, /stand alone/);
   }
   assert.match(responseGuide('Critic'), /🟢 A \/ 🟡 B \/ 🟠 C \/ 🔴 D/);
+  // John, 2026-11-07: the Critic's three jobs are missing information, blast radius and task size.
+  for(const k of [/❓ missing information/,/💥 blast radius/,/✂️ too big for one step/,/Completeness/])assert.match(responseGuide('Critic'),k);
 });
 
 test('numbered items are parsed and #N sends just those pieces, labeled with the role', () => {

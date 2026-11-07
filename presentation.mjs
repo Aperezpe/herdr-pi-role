@@ -1,18 +1,18 @@
 // Prompts control prose; the UI controls attribution and quote length. Never invent fields or change a model's answer to make it fit.
 const formats={
-  historian:['Answer','Evidence','Unknown'],critic:['Grade','Skipped decisions','Better approach'],notes:['Decided','Still open','Next action'],research:['Finding','Source','Unknown'],
+  historian:['Answer','Evidence','Unknown'],critic:['Grade','Missing','Blast radius','Size'],notes:['Decided','Still open','Next action'],research:['Finding','Source','Unknown'],
 };
 export function template(name){return formats[String(name).toLowerCase()]??['Finding','Basis','Next step'];}
 // Support roles are quick visual support for the person talking to Main (John, 2026-11-07): dense, rated,
 // glanceable, and every finding numbered so one piece can be sent to Main on its own (/role send main #2).
 const VOCAB={
- critic:'Grade the request or answer in the verdict (🟢 A / 🟡 B / 🟠 C / 🔴 D, then a 3–8 word reason). Items: ❓ a decision the request skipped or Main assumed, phrased as the exact question (say what Main assumed); ⚠️ a risk or unverified claim. Never list what is fine or settled, and never call Main’s choice clear or good. End with one item starting ➡️: the better approach or the smallest check.',
+ critic:'Grade the request in the verdict (🟢 A / 🟡 B / 🟠 C / 🔴 D, then a 3–8 word reason; 🟢 A means Main can finish it without guessing). Items: ❓ missing information Main would have to guess, phrased as the exact question for the person (say what Main assumed); 💥 blast radius: something else the change touches that the person may not expect, such as existing records, other pages or other people, asked as the question of whether it should change too; ✂️ too big for one step: say so and name the first smaller step. Never list what is fine or settled, and never call Main’s choice clear or good. End with one item starting ➡️: the next step for the person.',
  notes:'Verdict: what changed in this exchange. Items: ✅ decided (say who decided), ❓ still open, ⏭️ next action. Never invent an owner or deadline.',
  research:'Verdict: the answer in a few words. Items: 🔎 a finding with its source (URL or file path) and trust ★★★ / ★★☆ / ★☆☆; ❔ what is still unknown.',
  historian:'Verdict: the answer. Items: 📜 evidence with its entry ID and speaker; ❔ what the history does not show.',
 };
 const JOB={
- critic:'Be adversarial, not agreeable. Your default is to find what is wrong: a vague or underspecified prompt, an unsupported assumption, a risky plan or an unverified claim. Verify against the actual files with your tools before asserting a problem; never just speculate. Never praise. Only say there is no concern after you have checked and found none.',
+ critic:'Be adversarial, not agreeable. You have three jobs. 1) Completeness: does the prompt give Main enough to finish the whole task, or will Main have to guess? 2) Blast radius: make sure the person knows what else the change touches. 3) Size: if the task is bigger than one reviewable step, say so and name the first smaller one. Read the actual files with your tools before asserting a problem; never just speculate. Never decide a missing answer yourself, and never praise. When the request is complete, small and its reach is stated, say so in one line.',
  notes:'Record decisions as decisions only when someone actually settles them.',
  research:'Use web search and fetch tools for outside facts, and read local files for project facts, before answering. Separate what you verified from what was merely said; if no source is available, label the gap.',
 };
@@ -22,7 +22,7 @@ export function responseGuide(name){
  return `You are quick visual support for the person working in Main, shown in a narrow pane. They glance at you between prompts, so be dense and scannable, never conversational. ${job}\n`+
   'Format every substantive reply exactly like this:\n- First line: a single # heading that is the verdict, led by a status emoji.\n- Then a numbered Markdown list (1. 2. 3.), one line per item, each starting with its emoji. At most 6 items of about 12 words. Put the decisive words in **bold**.\n- Nothing else: no paragraphs, preamble, recap, tables or sign-off. Each item must stand alone, because the person may send just that item to Main.\n'+
   `${vocab}\nIf there is nothing new, reply with one line: 🟢 Nothing new. Never invent facts or ratings you can't support. Honor an explicitly requested format.`+
-  (key==='critic'?'\nShape example about a DIFFERENT problem (use its shape, not its subject):\n\n# 🟠 C · a retry can double-charge\n\n1. ⚠️ A lost response after success makes the retry **charge twice**\n2. ❓ Is the payment call **idempotent** per order?\n3. ➡️ Drop the first response, retry, check the ledger shows **one** charge':'');
+  (key==='critic'?'\nShape example about a DIFFERENT problem (use its shape, not its subject):\n\n# 🟠 C · checkout redesign hides three changes\n\n1. ❓ Which **payment methods** must the new checkout keep?\n2. 💥 Should **saved carts** and order emails change too?\n3. ✂️ Too big for one step: start with **the address form** alone\n4. ➡️ Answer 1, then ask Main for the address form only':'');
 }
 // The numbered items of a reply: the pieces a person can send to Main on their own.
 export function items(text){
