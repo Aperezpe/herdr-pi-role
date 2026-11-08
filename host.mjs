@@ -80,7 +80,8 @@ export async function here(pi, ctx) {
 export const RESEARCH_TOOLS = ['web_search','fetch_content','get_search_content','source_check','google_search'];
 export function roleTools(pi, work, name = '') {
   const active = new Set(pi.getActiveTools()), installed = new Set((pi.getAllTools?.() ?? []).map(t => t.name));
-  const files = ['read','grep','find','ls',...(work ? ['write','edit','bash'] : [])].filter(t => active.has(t));
+  // --work is an explicit opt-in: write, edit and bash are Pi built-ins, so the role gets them even when Main itself runs read-only.
+  const files = [...['read','grep','find','ls'].filter(t => active.has(t)), ...(work ? ['write','edit','bash'] : [])];
   const web = String(name).toLowerCase() === 'research' ? RESEARCH_TOOLS.filter(t => active.has(t) || installed.has(t)) : [];
   return [...files, ...web];
 }

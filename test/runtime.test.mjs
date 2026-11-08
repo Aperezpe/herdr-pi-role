@@ -23,6 +23,9 @@ test('Research gets installed web tools; other roles keep file-only reads; criti
   const pi={getActiveTools:()=>['read','grep','find','ls','bash','web_search'],getAllTools:()=>['fetch_content','get_search_content','web_search'].map(name=>({name}))};
   assert.deepEqual(roleTools(pi,false,'Research'),['read','grep','find','ls','web_search','fetch_content','get_search_content']);
   assert.deepEqual(roleTools(pi,false,'Critic'),['read','grep','find','ls']);
+  const readOnlyMain={getActiveTools:()=>['read','grep','find','ls'],getAllTools:()=>['read','grep','find','ls'].map(name=>({name}))};
+  assert.deepEqual(roleTools(readOnlyMain,false,'Fixer'),['read','grep','find','ls']);
+  assert.deepEqual(roleTools(readOnlyMain,true,'Fixer'),['read','grep','find','ls','write','edit','bash']);
   assert.match(spec('Critic').job,/adversarial/);assert.match(spec('Research').job,/search the web/);
   const step=progressStep({role:'assistant',stopReason:'toolUse',content:[{type:'thinking',thinking:'PRIVATE'},{type:'text',text:'Looking at bookings.'},{type:'toolCall',name:'bash',arguments:{command:'grep -rn minimum src'}}]});
   assert.equal(step,'Looking at bookings.\n- bash: grep -rn minimum src');
