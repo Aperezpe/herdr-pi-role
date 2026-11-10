@@ -75,6 +75,28 @@ export function digest(text, limit = 120_000) {
   return note + JSON.stringify(sample(data, 0)).slice(0, limit);
 }
 
+// One desk_state read, shared by the linked-role tool and the standalone runner.
+export async function readDeskState(def, p = {}) {
+  if (!def || !Object.keys(def.state ?? {}).length) throw Error('No connected app state is configured for this role.');
+  if (p.view && !def.state[p.view]) throw Error(`Unknown view. Available: ${Object.keys(def.state).join(', ')}.`);
+  if (p.path && !p.view) throw Error('A path needs its view.');
+  const picks = p.view ? { [p.view]: def.state[p.view] } : def.state, parts = [];
+  for (const [label, url] of Object.entries(picks)) {
+    let body;
+    try { body = await fetchState(url, 8_000_000); } // the digest below, not the wire cap, bounds what the model sees
+    catch (e) { parts.push(`## ${label} · ${url}\nUnavailable (${e instanceof Error ? e.message : e}). Say the app is not reachable; do not guess its state.`); continue; }
+    if (p.path) { // a wrong path is the caller's mistake, not app state: fail the call
+      let data;
+      try { data = JSON.parse(body); } catch { throw Error('This view is not JSON; read it without a path.'); }
+      const slice = atPath(data, p.path);
+      if (slice === undefined) throw Error(`Nothing at ${p.path}. Top-level keys: ${data && typeof data === 'object' ? Object.keys(data).slice(0, 30).join(', ') : typeof data}.`);
+      body = JSON.stringify(slice, null, 1);
+    }
+    parts.push(`## ${label}${p.path ? ' · ' + p.path : ''} · ${url}\n${digest(body)}`);
+  }
+  return parts.join('\n\n');
+}
+
 let ca;
 function localCa() {
   if (ca === undefined) { try { ca = readFileSync(join(homedir(), '.portless', 'ca.pem')); } catch { ca = null; } }

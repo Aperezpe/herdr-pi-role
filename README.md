@@ -65,6 +65,17 @@ A project can define its own named roles in `.pi/roles.json`. A project role has
 
 Project roles appear in the `/role` list under the built-ins (which they cannot shadow), open like any other role, and keep the normal read-only file tools. A role with `state` also gets the **desk_state** tool: a GET of its configured endpoints only, restricted to `*.localhost` over HTTPS (verified against the portless CA in `~/.portless/ca.pem` when present) or `127.0.0.1` over HTTP. A very large JSON view is returned as a bounded sample; `view` plus `path` (`parts.0.slides`) reads an exact slice. An unreachable app is reported as such — the role is told to say so rather than guess. A pinned model is that role's default and skips the picker; an explicit `--model` still overrides it, and the pinned ref stays selectable even when `/scoped-models` leaves it out. Changing `roles.json` takes effect at the next open; already-linked panes keep the job they started with.
 
+A project role can also run as its **own standalone pi session**, without a Main link: `run-role.mjs` exports `runProjectRole(name)`, which starts `pi` on the role's pinned model and thinking level with `standalone.ts` loaded — the same job in the system prompt and the same `desk_state` tool. A thin project wrapper is enough:
+
+```ts
+#!/usr/bin/env node
+import { runProjectRole } from '../.pi/extensions/temporary-role/run-role.mjs';
+process.chdir(new URL('..', import.meta.url).pathname);
+runProjectRole('Review');
+```
+
+Extra arguments pass through to `pi` (`agents/review.ts -p "…"` runs one print-mode turn). The standalone session is an ordinary pi session with its normal tools; the role's read-only discipline comes from its job text, not a tool cage.
+
 ## Use the role pane from the keyboard
 
 In a linked terminal role, type and press **Enter** to ask privately. Press **↑/↓** in a single-line draft to select a finished reply. A preview under the editor shows what would be sent; **PgUp/PgDn** reads longer previews. **Enter** sends only the selected reply to Main’s inbox, once. New arrivals don’t move your selection. **Esc** or editing returns to writing without clearing your draft. Multiline drafts, slash commands and autocomplete keep Pi’s normal keys. Main’s editor is unchanged.

@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
-import { projectRoles, fetchState, atPath, digest } from '../project-roles.mjs';
+import { projectRoles, fetchState, atPath, digest, readDeskState } from '../project-roles.mjs';
 import { spec } from '../host.mjs';
 import { roleModels } from '../models.ts';
 
@@ -73,5 +73,15 @@ test('fetchState GETs a loopback endpoint, bounds the body, and refuses non-loca
     assert.match(await fetchState(`${base}/big`, 100), /… truncated$/);
     await assert.rejects(fetchState('https://example.com/api'), /local/);
     await assert.rejects(fetchState('file:///etc/hosts'), /local/);
+
+    const def = { state: { state: `${base}/api/state`, down: 'http://127.0.0.1:1/x' } };
+    const all = await readDeskState(def, {});
+    assert.match(all, /## state · .*\n\{"ok":true/);
+    assert.match(all, /## down · .*\nUnavailable \(/); // a dead app is reported per view, not guessed
+    assert.match(await readDeskState(def, { view: 'state', path: 'path' }), /"\/api\/state"/);
+    await assert.rejects(readDeskState(def, { view: 'nope' }), /Available: state, down/);
+    await assert.rejects(readDeskState(def, { path: 'x' }), /needs its view/);
+    await assert.rejects(readDeskState(def, { view: 'state', path: 'missing' }), /Top-level keys: ok, path/);
+    await assert.rejects(readDeskState({ state: {} }, {}), /No connected app state/);
   } finally { server.close(); }
 });

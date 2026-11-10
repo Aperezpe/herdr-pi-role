@@ -16,7 +16,7 @@ import { pickRoleModel } from './model-picker.ts';
 import { launchSpec, roleCli } from './role-launch.ts';
 
 import { history, historianJob } from './history.ts';
-import { projectRoles, fetchState, atPath, digest } from './project-roles.mjs';
+import { projectRoles, readDeskState } from './project-roles.mjs';
 const HIST='temporary-role.historian-question';
 const WATCH = 'temporary-role.observation', DIRECT = 'temporary-role.direct';
 type Ctx = ExtensionContext;
@@ -76,26 +76,10 @@ export default function temporaryRole(pi:ExtensionAPI) {
     const count=d.total+' matching '+(d.total===1?'entry':'entries');const lines=expanded?d.entries.map(r=>r.speaker+' ['+r.id+'] · '+String(r.text).replace(/[\x00-\x1f\x7f-\x9f]+/g,' ')):[];return new Text([theme.fg('muted',count),...lines].join('\n'),0,0);
   }});
   // Project roles (.pi/roles.json) read their connected app's live state through this tool.
-  pi.registerTool({name:'desk_state',label:'Connected app state',description:'Fetch the live state of this role’s connected local app (read-only GET). Omit view for every configured endpoint, or name one view. A very large JSON view is returned sampled; pass view plus path (dot/index, e.g. parts.0.slides) for an exact slice. An unreachable endpoint is reported, not guessed.',parameters:Type.Object({view:Type.Optional(Type.String({maxLength:32})),path:Type.Optional(Type.String({maxLength:200}))}),execute:async(_id,p,_sig,_update,c)=>{
+  // A standalone role session (agents/*.ts → standalone.ts) registers its own desk_state instead.
+  if(!process.env.PI_PROJECT_ROLE)pi.registerTool({name:'desk_state',label:'Connected app state',description:'Fetch the live state of this role’s connected local app (read-only GET). Omit view for every configured endpoint, or name one view. A very large JSON view is returned sampled; pass view plus path (dot/index, e.g. parts.0.slides) for an exact slice. An unreachable endpoint is reported, not guessed.',parameters:Type.Object({view:Type.Optional(Type.String({maxLength:32})),path:Type.Optional(Type.String({maxLength:200}))}),execute:async(_id,p,_sig,_update,c)=>{
     const def=me&&me.allowed?.includes('desk_state')?projectRoles(c.cwd)[me.name.toLowerCase()]:undefined;
-    if(!def||!Object.keys(def.state).length)throw Error('No connected app state is configured for this role.');
-    if(p.view&&!def.state[p.view])throw Error(`Unknown view. Available: ${Object.keys(def.state).join(', ')}.`);
-    if(p.path&&!p.view)throw Error('A path needs its view.');
-    const picks=p.view?{[p.view]:def.state[p.view]}:def.state, parts=[];
-    for(const [label,url] of Object.entries(picks)){
-      try{
-        let body=await fetchState(url,8_000_000); // the digest below, not the wire cap, bounds what the model sees
-        if(p.path){
-          let data;try{data=JSON.parse(body);}catch{throw Error('This view is not JSON; read it without a path.');}
-          const slice=atPath(data,p.path);
-          if(slice===undefined)throw Error(`Nothing at ${p.path}. Top-level keys: ${data&&typeof data==='object'?Object.keys(data).slice(0,30).join(', '):typeof data}.`);
-          body=JSON.stringify(slice,null,1);
-        }
-        parts.push(`## ${label}${p.path?' · '+p.path:''} · ${url}\n${digest(body)}`);
-      }
-      catch(e){parts.push(`## ${label} · ${url}\nUnavailable (${errorText(e)}). Say the app is not reachable; do not guess its state.`);}
-    }
-    return {content:[{type:'text',text:parts.join('\n\n')}]};
+    return {content:[{type:'text',text:await readDeskState(def,p)}]};
   }});
   const shownChildState=()=>childState==='watching Main'&&me?.name.toLowerCase()==='historian'?'ready for questions':childState;
   function statusLine() {
