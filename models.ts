@@ -6,7 +6,7 @@ export type RoleModel = { ref:string; provider:string; id:string; name:string; m
 // Support roles are quick visual support, so they default to a cheap fast model (John, 2026-11-07: Haiku or Luna).
 // The first available match is the default; 'main' still picks Main's model.
 export const FAST=[/^anthropic\/claude-haiku-5-5$/,/luna/i,/\/claude-haiku-5-5$/,/haiku/i];
-export function roleModels(c:ExtensionContext,effort:Effort):RoleModel[] {
+export function roleModels(c:ExtensionContext,effort:Effort,pins:readonly string[]=[]):RoleModel[] {
   const current=c.model && `${c.model.provider}/${c.model.id}`;
   const scoped=new Map((c.scopedModels??[]).map(s=>[`${s.model.provider}/${s.model.id}`,s]));
   const rows=new Map<string,RoleModel>(),available=c.modelRegistry.getAvailable(),refs=available.map(m=>`${m.provider}/${m.id}`);
@@ -14,7 +14,8 @@ export function roleModels(c:ExtensionContext,effort:Effort):RoleModel[] {
   const fastRef=FAST.map(re=>refs.find(r=>re.test(r))).find(Boolean);
   for(const m of available){
     const ref=`${m.provider}/${m.id}`;
-    if(rows.has(ref)||(!scoped.has(ref)&&scoped.size>0&&ref!==current&&ref!==fastRef))continue;
+    // Project roles may pin an exact model; it stays selectable even when /scoped-models leaves it out.
+    if(rows.has(ref)||(!scoped.has(ref)&&scoped.size>0&&ref!==current&&ref!==fastRef&&!pins.includes(ref)))continue;
     const setting=effort(m,scoped.get(ref)?.thinkingLevel);if(!setting.levels.includes(setting.thinking))continue;
     rows.set(ref,{ref,provider:m.provider,id:m.id,name:m.name||m.id,main:ref===current,...setting});
   }

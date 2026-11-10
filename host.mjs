@@ -15,11 +15,11 @@ export function message(s) {
   if (typeof s !== 'string' || !safeText(s) || s.length > 2400) throw Error('Use a nonempty message of at most 2,400 characters.');
   return safeText(s);
 }
-export function spec(raw, job, work = false) {
+export function spec(raw, job, work = false, project = {}) {
   const name = (raw || 'Critic').trim();
   if (!/^[a-z][a-z0-9_-]{0,31}$/i.test(name) || /^(main|all|open|status|inbox|send|stop|help)$/i.test(name)) throw Error('Use a role name such as Critic or release-notes (one word, up to 32 characters).');
   if(name.toLowerCase()==='historian'&&work)throw Error('Historian is read-only. Open it without --work.');
-  return { name, job: message(job?.trim() || presets[name.toLowerCase()] || `Act as ${name}. Focus only on that job.`), work };
+  return { name: project[name.toLowerCase()]?.name || name, job: message(job?.trim() || presets[name.toLowerCase()] || project[name.toLowerCase()]?.job || `Act as ${name}. Focus only on that job.`), work };
 }
 export function observation(m) {
   if (m.role !== 'user' && !(m.role === 'assistant' && (m.stopReason === 'stop' || m.stopReason === 'length'))) return;

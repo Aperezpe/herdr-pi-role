@@ -11,7 +11,8 @@ const topics = {
 const mainTopics=Object.keys(topics), childTopics=['send','status','stop'];
 const children=s=>s.roles.filter(r=>r.state==='watching'||r.state==='opening');
 const linked=s=>s.state==='watching Main';
-const fresh=s=>presets.filter(([n])=>!children(s).some(r=>r.name.toLowerCase()===n.toLowerCase()));
+const all=s=>[...presets,...(s.projectPresets??[]).filter(([n]:[string,string])=>!presets.some(([p])=>p.toLowerCase()===n.toLowerCase()))];
+const fresh=s=>all(s).filter(([n])=>!children(s).some(r=>r.name.toLowerCase()===n.toLowerCase()));
 const names=s=>children(s).map(r=>[r.name,`${r.state==='opening'?'Opening':'Linked role'} · ${r.name}`]);
 function choices(prefix,items,head='') {
   const matches=items.filter(([v])=>v.toLowerCase().startsWith(prefix.toLowerCase()));

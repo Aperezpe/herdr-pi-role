@@ -51,6 +51,20 @@ For watching roles, the chosen provider receives the fork and subsequent watched
 
 By default the role can inspect files using the reading tools available in Main. For a job that needs to change files or run commands, opt in when you open it (the role then gets write, edit and shell tools even when Main itself is read-only): `/role --work Notes Keep agreed decisions in notes.md`. Work roles share the project directory; give each writer its own files. These are Pi tool limits, not an operating-system sandbox. The extension needs normal local permissions and does not transmit messages to an external messaging service.
 
+## Project roles connected to a local app
+
+A project can define its own named roles in `.pi/roles.json`. A project role has a one-sentence `hint` for the menus, a `job`, optional read-only `state` endpoints, an optional pinned `model` (exact provider/model) with a `thinking` level, and an optional `vocab` line for its reply items:
+
+```jsonc
+{ "roles": { "Review": {
+    "hint": "Moment review · live state",
+    "job": "Support the review. Fetch desk_state before answering.",
+    "state": { "state": "https://review.example.localhost/api/state" },
+    "model": "provider/model", "thinking": "medium" } } }
+```
+
+Project roles appear in the `/role` list under the built-ins (which they cannot shadow), open like any other role, and keep the normal read-only file tools. A role with `state` also gets the **desk_state** tool: a GET of its configured endpoints only, restricted to `*.localhost` over HTTPS (verified against the portless CA in `~/.portless/ca.pem` when present) or `127.0.0.1` over HTTP. A very large JSON view is returned as a bounded sample; `view` plus `path` (`parts.0.slides`) reads an exact slice. An unreachable app is reported as such — the role is told to say so rather than guess. A pinned model is that role's default and skips the picker; an explicit `--model` still overrides it, and the pinned ref stays selectable even when `/scoped-models` leaves it out. Changing `roles.json` takes effect at the next open; already-linked panes keep the job they started with.
+
 ## Use the role pane from the keyboard
 
 In a linked terminal role, type and press **Enter** to ask privately. Press **↑/↓** in a single-line draft to select a finished reply. A preview under the editor shows what would be sent; **PgUp/PgDn** reads longer previews. **Enter** sends only the selected reply to Main’s inbox, once. New arrivals don’t move your selection. **Esc** or editing returns to writing without clearing your draft. Multiline drafts, slash commands and autocomplete keep Pi’s normal keys. Main’s editor is unchanged.

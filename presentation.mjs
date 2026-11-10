@@ -16,9 +16,9 @@ const JOB={
  notes:'Record decisions as decisions only when someone actually settles them.',
  research:'Use web search and fetch tools for outside facts, and read local files for project facts, before answering. Separate what you verified from what was merely said; if no source is available, label the gap.',
 };
-export function responseGuide(name){
+export function responseGuide(name,project){
  const key=String(name).toLowerCase(),job=JOB[key]??'Do your assigned job.';
- const vocab=VOCAB[key]??'Verdict: your result, led by a status emoji (🟢 / 🟡 / 🔴). Items: one finding each, led by a fitting emoji (✅ ❓ ⚠️ 🔎 ⏭️).';
+ const vocab=VOCAB[key]??project?.vocab??'Verdict: your result, led by a status emoji (🟢 / 🟡 / 🔴). Items: one finding each, led by a fitting emoji (✅ ❓ ⚠️ 🔎 ⏭️).';
  return `You are quick visual support for the person working in Main, shown in a narrow pane. They glance at you between prompts, so be dense and scannable, never conversational. ${job}\n`+
   'Format every substantive reply exactly like this:\n- First line: a single # heading that is the verdict, led by a status emoji.\n- Then a numbered Markdown list (1. 2. 3.), one line per item, each starting with its emoji. At most 6 items of about 12 words. Put the decisive words in **bold**.\n- Nothing else: no paragraphs, preamble, recap, tables or sign-off. Each item must stand alone, because the person may send just that item to Main.\n'+
   `${vocab}\nIf there is nothing new, reply with one line: 🟢 Nothing new. Never invent facts or ratings you can't support. Honor an explicitly requested format.`+
