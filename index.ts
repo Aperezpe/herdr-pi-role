@@ -222,8 +222,8 @@ export default function temporaryRole(pi:ExtensionAPI) {
       },{placement:'aboveEditor'});
       const roleMenu:CommandMenu={choices:p=>roleCompletions(p,info()),bare:()=>me?'help':'Critic'};
       const menus=new Map<string,CommandMenu>([['agent',roleMenu],['role',roleMenu]]); // /role is the old name of /agent
-      // Only opt in a /widget command owned by the installed companion.
-      pi.events.emit('herdr-role:command-menu.v1',{inChild:()=>!!me,widget:(menu:CommandMenu)=>menus.set('widget',menu)});
+      // Only opt in a desk command (/desk, formerly /widget) owned by the installed companion; it names its menu.
+      pi.events.emit('herdr-role:command-menu.v1',{inChild:()=>!!me,widget:(menu:CommandMenu&{name?:string})=>menus.set(menu.name??'widget',menu)});
       c.ui.addAutocompleteProvider(current=>commandMenus(current,menus,()=>screen?.getFocusedComponent?.(),()=>c.ui.getEditorText(),(name,draft)=>{
         if(me||opening||picker||[...roles.values()].some(r=>active(r)&&r.owner.name.toLowerCase()===name.toLowerCase()))return;
         const epoch=generation;

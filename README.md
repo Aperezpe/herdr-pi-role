@@ -35,7 +35,7 @@ Main offers starter agents and live recipients. A linked child offers `main`, no
 
 Historian searches the active branch of this Pi session, including original messages before compaction. Ask for the speaker, entry ID and exact wording. It can distinguish a compaction summary from an original message, but cannot recover deleted entries. Other sessions, sibling branches, raw tool output, hidden thinking and images are outside the search.
 
-For a private ongoing conversation, open /agent Historian (or /widget Historian with the optional desk). Unlike a watching agent, it starts with just its job, waits for a question, and requests excerpts from its linked Main. It has no shell or file tools. A different chosen provider can receive those excerpts. Private answers stay there unless explicitly sent back.
+For a private ongoing conversation, open /agent Historian (or /desk Historian with the optional desk; it was /widget before 2026-11-12). Unlike a watching agent, it starts with just its job, waits for a question, and requests excerpts from its linked Main. It has no shell or file tools. A different chosen provider can receive those excerpts. Private answers stay there unless explicitly sent back.
 
 Agent interface: historian({query, beforeCompaction?, page?}) searches literal text; omit query for newest entries. historian({entry, offset?}) reads a longer excerpt by ID. Results report total matches and source positions; no match is not proof the event never happened.
 

@@ -28,8 +28,8 @@ export function commandMenus(current:AutocompleteProvider, menus:Map<string,Comm
   // Tab/mouse fills the editor; Enter on a slash row instead submits it. Only
   // offer the draft picker if the original editor still owns that exact fill.
   function afterFill(result:{lines:string[];cursorLine:number;cursorCol:number}){
-    const text=atEnd(result.lines,result.cursorLine,result.cursorCol),m=text?.match(/^\/(agent|role|widget) ((?:open )?(?:--work )?)([a-z][\w-]{0,31})$/i);
-    if(roleFilled&&text&&m&&menus.has(m[1])&&!(m[1]==='widget'&&m[2])&&!/^(main|all|open|send|stop|status|inbox|help)$/i.test(m[3])){
+    const text=atEnd(result.lines,result.cursorLine,result.cursorCol),m=text?.match(/^\/(agent|role|widget|desk) ((?:open )?(?:--work )?)([a-z][\w-]{0,31})$/i);
+    if(roleFilled&&text&&m&&menus.has(m[1])&&!((m[1]==='widget'||m[1]==='desk')&&m[2])&&!/^(main|all|open|send|stop|status|inbox|help)$/i.test(m[3])){
       const editor=focus() as Editor|undefined;
       queueMicrotask(()=>{const pos=editor?.getCursor?.();if(editor&&editor===focus()&&editor.getText?.()===text&&draft()===text&&pos?.line===0&&pos.col===text.length&&!editor.isShowingAutocomplete?.())roleFilled(m[3],text);});
     }
@@ -55,8 +55,9 @@ export function commandMenus(current:AutocompleteProvider, menus:Map<string,Comm
         if(items?.length)return {items,prefix:root.args};
       }
       const result=await current.getSuggestions(lines,line,col,options);
-      if(text==='/wi' && menus.has('widget') && result?.prefix===text){
-        const widget=result.items.find(i=>i.value==='widget');
+      const deskName=menus.has('desk')?'desk':'widget';
+      if(text===`/${deskName.slice(0,2)}` && menus.has(deskName) && result?.prefix===text){
+        const widget=result.items.find(i=>i.value===deskName);
         if(widget)return {...result,items:[widget,...result.items.filter(i=>i!==widget)]};
       }
       return result;
