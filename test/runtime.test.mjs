@@ -19,7 +19,7 @@ test('resolve exact, available scoped IDs; put the intended provider and nested 
  assert.deepEqual(modelJob('--model b/v/one Review --model literally'),{model:'b/v/one',job:'Review --model literally'});assert.deepEqual(modelJob('Review --model main'),{job:'Review --model main'});assert.throws(()=>modelJob('--model'));assert.deepEqual(modelJob('--thinking low --model main Keep --thinking literal'),{thinking:'low',model:'main',job:'Keep --thinking literal'});assert.throws(()=>modelJob('--thinking --model main'));
 });
 
-test('Research gets installed web tools; other roles keep file-only reads; critics see tool steps without output',()=>{
+test('Research gets installed web tools; other agents keep file-only reads; critics see tool steps without output',()=>{
   const pi={getActiveTools:()=>['read','grep','find','ls','bash','web_search'],getAllTools:()=>['fetch_content','get_search_content','web_search'].map(name=>({name}))};
   assert.deepEqual(roleTools(pi,false,'Research'),['read','grep','find','ls','web_search','fetch_content','get_search_content']);
   assert.deepEqual(roleTools(pi,false,'Critic'),['read','grep','find','ls']);
@@ -44,13 +44,13 @@ test('the live feed shares prompt and answer text, not tools, aborted replies, h
   assert.match(observation({role:'user',content:'Example: '+attached}).text,/Example: <skill/);
   for(const n of ['all','Main','send','\nfoo bar']) assert.throws(()=>spec(n));
 });
-test('an agent opening a role mid-tool does not orphan an old call or duplicate a completed result',()=>{
+test('an agent opening an agent mid-tool does not orphan an old call or duplicate a completed result',()=>{
   const turn=(...ids)=>({type:'message',message:{role:'assistant',stopReason:'toolUse',content:ids.map(id=>({type:'toolCall',id,name:id}))}});
   const result=id=>({type:'message',message:{role:'toolResult',toolCallId:id}});
   assert.deepEqual(unfinished([turn('old'),turn('a','b'),result('a'),{type:'session_info'}]).map(b=>b.id),['b']);
   assert.deepEqual(unfinished([turn('old'),{type:'message',message:{role:'user'}}]),[]);
 });
-test('one private ticket binds one role; wrong or reused tickets cannot receive or send notes',async()=>{
+test('one private ticket binds one agent; wrong or reused tickets cannot receive or send notes',async()=>{
   const received=[];let peer, accepted=0;
   const channel=await listen((msg,p)=>{assert.equal(msg.child,'expected');peer=p;accepted++;return {ready:true};},(type,v)=>{received.push(v);return 'received';},()=>{});
   const clients=[];

@@ -3,8 +3,8 @@ const formats={
   historian:['Answer','Evidence','Unknown'],critic:['Grade','Missing','Blast radius','Size'],notes:['Decided','Still open','Next action'],research:['Finding','Source','Unknown'],
 };
 export function template(name){return formats[String(name).toLowerCase()]??['Finding','Basis','Next step'];}
-// Support roles are quick visual support for the person talking to Main (John, 2026-11-07): dense, rated,
-// glanceable, and every finding numbered so one piece can be sent to Main on its own (/role send main #2).
+// Support agents are quick visual support for the person talking to Main (John, 2026-11-07): dense, rated,
+// glanceable, and every finding numbered so one piece can be sent to Main on its own (/agent send main #2).
 const VOCAB={
  critic:'Grade the request in the verdict (🟢 A / 🟡 B / 🟠 C / 🔴 D, then a 3–8 word reason; 🟢 A means Main can finish it without guessing). Items: ❓ missing information Main would have to guess, phrased as the exact question for the person (say what Main assumed); 💥 blast radius: something else the change touches that the person may not expect, such as existing records, other pages or other people, asked as the question of whether it should change too; ✂️ too big for one step: say so and name the first smaller step. Never list what is fine or settled, and never call Main’s choice clear or good. End with one item starting ➡️: the next step for the person.',
  notes:'Verdict: what changed in this exchange. Items: ✅ decided (say who decided), ❓ still open, ⏭️ next action. Never invent an owner or deadline.',
@@ -30,7 +30,7 @@ export function items(text){
  for(const line of String(text).split('\n')){const m=/^\s{0,3}(\d{1,2})[.)]\s+(\S.*)$/.exec(line);if(m)out.push({n:Number(m[1]),text:m[2].trim()});}
  return out;
 }
-// "#2" or "#1,3" typed in a role pane names those items of its latest reply, labeled with the role.
+// "#2" or "#1,3" typed in an agent pane names those items of its latest reply, labeled with the agent.
 export function pickItems(text,ref,name){
  const m=/^#\s*(\d{1,2}(?:\s*,\s*\d{1,2})*)\s*$/.exec(String(ref).trim());if(!m)return null;
  const list=items(text);if(!list.length)throw Error('The latest reply has no numbered items. Send its words instead.');

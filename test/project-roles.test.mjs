@@ -15,13 +15,13 @@ function projectWith(roles) {
   return cwd;
 }
 
-test('project roles accept only safe names, jobs and local state endpoints', () => {
+test('project agents accept only safe names, jobs and local state endpoints', () => {
   const cwd = projectWith({
     Review: { hint: 'Moment review', job: 'Support the review.', model: 'a/fable', thinking: 'medium',
       state: { state: 'https://review.mega.dev.localhost/api/state', loop: 'http://127.0.0.1:4331/api/outline',
         bad: 'https://example.com/api', worse: 'file:///etc/hosts', 'no spaces': 'https://x.localhost/y' } },
     'bad name!': { job: 'nope' },
-    Critic: { job: 'cannot shadow a built-in role' },
+    Critic: { job: 'cannot shadow a built-in agent' },
     empty: { job: '   ' },
   });
   const roles = projectRoles(cwd);

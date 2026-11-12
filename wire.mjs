@@ -13,14 +13,14 @@ export function wire(socket, handle, onClose) {
   socket.setEncoding('utf8'); socket.setNoDelay();
   function write(packet) {
     const line = JSON.stringify(packet) + '\n';
-    if (closed || socket.destroyed || !socket.writable) throw Error('The role link is closed.');
-    if (Buffer.byteLength(line) > MAX || socket.writableLength > MAX * 2) throw Error('The role link is full.');
+    if (closed || socket.destroyed || !socket.writable) throw Error('The agent link is closed.');
+    if (Buffer.byteLength(line) > MAX || socket.writableLength > MAX * 2) throw Error('The agent link is full.');
     socket.write(line);
   }
   const api = {
     close: () => socket.destroy(),
     call(method, data) {
-      if (waiting.size >= 48) return Promise.reject(Error('Too many pending role messages.'));
+      if (waiting.size >= 48) return Promise.reject(Error('Too many pending agent messages.'));
       return new Promise((resolve, reject) => {
         const id = randomUUID();
         const timer = setTimeout(() => { waiting.delete(id); reject(Error('No receipt from the other pane; delivery unknown. Inspect its inbox before resending.')); }, TIMEOUT);
@@ -67,7 +67,7 @@ export async function listen(onHello, handle, onClose) {
     let accepted = false;
     wire(sock, (method, msg, peer) => {
       if (!accepted) {
-        if (closed || taken || method !== 'hello' || msg?.token !== token) { sock.destroy(); throw Error('Invalid role ticket'); }
+        if (closed || taken || method !== 'hello' || msg?.token !== token) { sock.destroy(); throw Error('Invalid agent ticket'); }
         const welcome = onHello(msg, peer); // also checks both session identities
         accepted = taken = true; sock.setTimeout(0); server.close(); rmSync(path, { force: true }); return welcome;
       }

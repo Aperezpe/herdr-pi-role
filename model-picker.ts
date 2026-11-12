@@ -6,7 +6,7 @@ type Choice={ref:string;thinking:string};
 // Use Pi's public selector primitives and a stable, per-opening snapshot. The
 // global /model command changes Main and is intentionally never invoked here.
 export async function pickRoleModel(ctx:ExtensionContext, name:string, mode:'draft'|'open', signal:AbortSignal,rows:RoleModel[]):Promise<Choice|null>{
-  if(!rows.length)throw Error('No configured chat models for this role. Set up a model in Pi first.');
+  if(!rows.length)throw Error('No configured chat models for this agent. Set up a model in Pi first.');
   if(signal.aborted)return null;
   return ctx.ui.custom<Choice|null>((tui,theme,kb,done)=>{
     const input=new Input(), slot=new Container(), detail=new Text('',1,0);
@@ -39,7 +39,7 @@ export async function pickRoleModel(ctx:ExtensionContext, name:string, mode:'dra
     view.addChild(new Text(theme.fg('muted','This provider receives the fork and watched text. Main’s model stays unchanged.'),1,0));
     if(!rows.some(r=>r.main))view.addChild(new Text(theme.fg('warning','Main’s model is unavailable in this profile. Choose a configured model explicitly.'),1,0));
     view.addChild(input);view.addChild(slot);view.addChild(detail);
-    view.addChild(new Text(theme.fg('dim',`Type to filter · ↑↓ choose · Enter ${mode==='draft'?'fills draft':'opens role'} · Esc cancels`),1,0));
+    view.addChild(new Text(theme.fg('dim',`Type to filter · ↑↓ choose · Enter ${mode==='draft'?'fills draft':'opens agent'} · Esc cancels`),1,0));
     view.addChild(new DynamicBorder());filter();signal.addEventListener('abort',cancel,{once:true});return view;
   },{overlay:true,overlayOptions:{width:'94%',anchor:'center'}});
 }

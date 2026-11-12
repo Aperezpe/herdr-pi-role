@@ -28,7 +28,7 @@ export function commandMenus(current:AutocompleteProvider, menus:Map<string,Comm
   // Tab/mouse fills the editor; Enter on a slash row instead submits it. Only
   // offer the draft picker if the original editor still owns that exact fill.
   function afterFill(result:{lines:string[];cursorLine:number;cursorCol:number}){
-    const text=atEnd(result.lines,result.cursorLine,result.cursorCol),m=text?.match(/^\/(role|widget) ((?:open )?(?:--work )?)([a-z][\w-]{0,31})$/i);
+    const text=atEnd(result.lines,result.cursorLine,result.cursorCol),m=text?.match(/^\/(agent|role|widget) ((?:open )?(?:--work )?)([a-z][\w-]{0,31})$/i);
     if(roleFilled&&text&&m&&menus.has(m[1])&&!(m[1]==='widget'&&m[2])&&!/^(main|all|open|send|stop|status|inbox|help)$/i.test(m[3])){
       const editor=focus() as Editor|undefined;
       queueMicrotask(()=>{const pos=editor?.getCursor?.();if(editor&&editor===focus()&&editor.getText?.()===text&&draft()===text&&pos?.line===0&&pos.col===text.length&&!editor.isShowingAutocomplete?.())roleFilled(m[3],text);});
@@ -44,12 +44,12 @@ export function commandMenus(current:AutocompleteProvider, menus:Map<string,Comm
         if(!choices.length)return null;
         // Bare Enter must retain its meaning even if Critic is already linked,
         // or the user is in a child where the bare command instead shows help.
-        const first=choices.find(i=>i.value===bare)??{value:bare,label:bare,description:'Default role · already linked'};
+        const first=choices.find(i=>i.value===bare)??{value:bare,label:bare,description:'Default agent · already linked'};
         const rows=[first,...choices.filter(i=>i.value!==bare)];
         return {prefix:text!,items:rows.map(i=>({...i,value:`${name} ${i.value}`}))};
       }
       if(root && options.force && root.args!==undefined){
-        // Forced Tab normally asks Pi for files. Prefer a real role argument at
+        // Forced Tab normally asks Pi for files. Prefer a real agent argument at
         // an argument boundary; forward free-form job/message completion as-is.
         const items=root.menu.choices(root.args);
         if(items?.length)return {items,prefix:root.args};

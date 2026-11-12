@@ -1,5 +1,5 @@
-// Launch a project role (.pi/roles.json) as a standalone interactive pi session:
-// the role's pinned model and thinking level, its job in the system prompt, and
+// Launch a project agent (.pi/roles.json) as a standalone interactive pi session:
+// the agent's pinned model and thinking level, its job in the system prompt, and
 // its read-only desk_state tool (standalone.ts). Extra argv is passed to pi, so
 // wrappers support e.g. `agents/review.ts -p "question"`.
 import { spawn } from 'node:child_process';
@@ -8,7 +8,7 @@ import { projectRoles } from './project-roles.mjs';
 
 export function runProjectRole(name, args = process.argv.slice(2), cwd = process.cwd()) {
   const def = projectRoles(cwd)[String(name).toLowerCase()];
-  if (!def) { console.error(`No project role "${name}" in ${cwd}/.pi/roles.json.`); process.exit(1); }
+  if (!def) { console.error(`No project agent "${name}" in ${cwd}/.pi/roles.json.`); process.exit(1); }
   const argv = ['-e', fileURLToPath(new URL('./standalone.ts', import.meta.url))];
   if (def.model) {
     const [provider, ...id] = def.model.split('/');

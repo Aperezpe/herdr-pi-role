@@ -1,4 +1,4 @@
-// Project-defined roles (.pi/roles.json): a named role with its own job, read-only
+// Project-defined agents (.pi/roles.json): a named agent with its own job, read-only
 // local app state endpoints, and an optional pinned model. Example:
 //   { "roles": { "Review": {
 //       "hint": "Moment review, live state",
@@ -32,7 +32,7 @@ export function projectRoles(cwd) {
       name, job: r.job.trim(), state,
       model: typeof r.model === 'string' ? r.model : undefined,
       thinking: typeof r.thinking === 'string' ? r.thinking : undefined,
-      hint: typeof r.hint === 'string' ? r.hint.slice(0, 80) : 'Project role',
+      hint: typeof r.hint === 'string' ? r.hint.slice(0, 80) : 'Project agent',
       vocab: typeof r.vocab === 'string' ? r.vocab.slice(0, 600) : '',
     };
   }
@@ -77,7 +77,7 @@ export function digest(text, limit = 120_000) {
 
 // One desk_state read, shared by the linked-role tool and the standalone runner.
 export async function readDeskState(def, p = {}) {
-  if (!def || !Object.keys(def.state ?? {}).length) throw Error('No connected app state is configured for this role.');
+  if (!def || !Object.keys(def.state ?? {}).length) throw Error('No connected app state is configured for this agent.');
   if (p.view && !def.state[p.view]) throw Error(`Unknown view. Available: ${Object.keys(def.state).join(', ')}.`);
   if (p.path && !p.view) throw Error('A path needs its view.');
   const picks = p.view ? { [p.view]: def.state[p.view] } : def.state, parts = [];

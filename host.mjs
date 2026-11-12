@@ -17,7 +17,7 @@ export function message(s) {
 }
 export function spec(raw, job, work = false, project = {}) {
   const name = (raw || 'Critic').trim();
-  if (!/^[a-z][a-z0-9_-]{0,31}$/i.test(name) || /^(main|all|open|status|inbox|send|stop|help)$/i.test(name)) throw Error('Use a role name such as Critic or release-notes (one word, up to 32 characters).');
+  if (!/^[a-z][a-z0-9_-]{0,31}$/i.test(name) || /^(main|all|open|status|inbox|send|stop|help)$/i.test(name)) throw Error('Use an agent name such as Critic or release-notes (one word, up to 32 characters).');
   if(name.toLowerCase()==='historian'&&work)throw Error('Historian is read-only. Open it without --work.');
   return { name: project[name.toLowerCase()]?.name || name, job: message(job?.trim() || presets[name.toLowerCase()] || project[name.toLowerCase()]?.job || `Act as ${name}. Focus only on that job.`), work };
 }
@@ -52,7 +52,7 @@ export function fork(SessionManager, ctx, role) {
     child = SessionManager.open(parent, dir, ctx.cwd);
     if (child.getSessionId() !== source.getSessionId() || !child.getEntry(leaf)) throw Error('Main changed before the fork; no pane was opened.');
     if (!child.createBranchedSession(leaf) || child.getSessionFile() === parent) throw Error('Could not create a separate session.');
-    for (const call of unfinished(child.getBranch())) child.appendMessage({ role:'toolResult', toolCallId:call.id, toolName:call.name, content:[{type:'text',text:'Not executed in this role fork. Main continues independently.'}], isError:true, timestamp:Date.now() });
+    for (const call of unfinished(child.getBranch())) child.appendMessage({ role:'toolResult', toolCallId:call.id, toolName:call.name, content:[{type:'text',text:'Not executed in this agent fork. Main continues independently.'}], isError:true, timestamp:Date.now() });
   } else {
     if (source.getBranch().some(e => e.type === 'message' && ['user','assistant'].includes(e.message.role))) throw Error('The active conversation is not available on disk.');
     child = SessionManager.create(ctx.cwd, dir, { parentSession: parent });
@@ -69,7 +69,7 @@ export async function jsonExec(pi, bin, args, cwd) {
 }
 export async function here(pi, ctx) {
   const t = process.env.HC_TERMINAL_ID;
-  if (ctx.mode !== 'tui' || !t) throw Error('/role open needs interactive Pi in a local Herdr app pane.');
+  if (ctx.mode !== 'tui' || !t) throw Error('/agent open needs interactive Pi in a local Herdr app pane.');
   const [term, listing] = await Promise.all([jsonExec(pi, 'hc', ['get', t], ctx.cwd), jsonExec(pi, 'herdr-app', ['ls'], ctx.cwd)]);
   const s = term.labels?.['herdr.space'], tab = term.labels?.['herdr.tab'];
   const matches = listing.spaces.filter(x => !x.machine && s && x.id === s).flatMap(x => x.tabs.filter(v => v.id === tab).flatMap(v => v.terminals.filter(p => p.terminal === t && p.pane)));
@@ -80,7 +80,7 @@ export async function here(pi, ctx) {
 export const RESEARCH_TOOLS = ['web_search','fetch_content','get_search_content','source_check','google_search'];
 export function roleTools(pi, work, name = '') {
   const active = new Set(pi.getActiveTools()), installed = new Set((pi.getAllTools?.() ?? []).map(t => t.name));
-  // --work is an explicit opt-in: write, edit and bash are Pi built-ins, so the role gets them even when Main itself runs read-only.
+  // --work is an explicit opt-in: write, edit and bash are Pi built-ins, so the agent gets them even when Main itself runs read-only.
   const files = [...['read','grep','find','ls'].filter(t => active.has(t)), ...(work ? ['write','edit','bash'] : [])];
   const web = String(name).toLowerCase() === 'research' ? RESEARCH_TOOLS.filter(t => active.has(t) || installed.has(t)) : [];
   return [...files, ...web];

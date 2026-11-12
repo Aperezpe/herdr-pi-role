@@ -14,9 +14,10 @@ test('argument replacement carries the verb, only offers addressable targets, an
  assert.equal(complete('Notes',child),null);assert.deepEqual(values('help se',child),['help send']);
 });
 test('hints disappear outside the command and explain scope before a user takes action',()=>{
- for(const s of ['plain /role','/roles','/roleplay'])assert.equal(hint(s,main),null);
- assert.match(hint('/role send Notes ',main).join(' '),/<message>/);assert.match(hint('/role --work Notes',main).join(' '),/edit files/);
- assert.match(hint('/role send main hi',child).join(' '),/Main keeps working/);assert.match(help(child,'send'),/next prompt/);assert.match(help(main,'send'),/broadcast/);
+ for(const s of ['plain /agent','/agents','/roles','/roleplay'])assert.equal(hint(s,main),null);
+ assert.match(hint('/role send Notes ',main).join(' '),/^\/agent send Notes <message>/); // the old name still gets hints, which teach the new one
+ assert.match(hint('/agent send Notes ',main).join(' '),/<message>/);assert.match(hint('/agent --work Notes',main).join(' '),/edit files/);
+ assert.match(hint('/agent send main hi',child).join(' '),/Main keeps working/);assert.match(help(child,'send'),/next prompt/);assert.match(help(main,'send'),/broadcast/);
 });
 test('an old root choice cannot overwrite a newer job; a completion cannot reopen after a focus or draft change',async()=>{
  let draft='/wi',focused,requests=0;
