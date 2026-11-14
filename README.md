@@ -25,7 +25,7 @@ It is the third of three small extensions that go together: [`/split`](https://g
 pi install git:github.com/johnlindquist/herdr-pi-role
 ```
 
-Then run `/reload` in Pi, or start Pi again. The install has no dependencies to download.
+Then run `/reload` in Pi, or start Pi again. The install has no dependencies to download. The first time Pi starts in a folder it asks "Trust project folder?"; that question is Pi's, not this extension's.
 
 - Update: `pi update --extensions`
 - A fixed version: `pi install git:github.com/johnlindquist/herdr-pi-role@v0.9.0`
