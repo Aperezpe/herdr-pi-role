@@ -1,8 +1,8 @@
 # Herdr Pi Agent
 
-Fork a temporary, interactive agent from your current Pi conversation in Herdr. The agent can watch Main without interrupting it.
+`/agent`: open a supporting agent in a pane beside your current Pi conversation in the [Herdr desktop app](https://github.com/herdrdev/herdr-app). The agent watches Main without interrupting it, runs on a small, fast model by default, and sends nothing back unless you choose to.
 
-`/agent` was `/role` until 2026-11-11. `/role` still works and its hints show the new name. Unchanged for now: the `temporary_role` tool, the `.pi/roles.json` file for project agents and the `temporary-role` folder name in the course download.
+It is the third of three small Pi extensions that go together: [`/split`](https://github.com/johnlindquist/herdr-pi-split) branches a conversation into a new pane, [`/lab`](https://github.com/johnlindquist/herdr-pi-lab) grows and tests agents from the outside, and `/agent` (this one) opens them beside Main.
 
 In a **local Herdr app pane** running Pi, type:
 
@@ -12,14 +12,18 @@ In a **local Herdr app pane** running Pi, type:
 
 Choose the model for Critic. The **fast default** (Haiku, or Luna when that is what you have) is highlighted, because an agent is quick visual support; Enter accepts it. **Same as Main** is next in the list. A second Pi opens beside Main at the current point in its history. There is no tree picker, summary request, or naming step. Keep talking in Main. The Critic sees new prompts and finished replies as they arrive, even while Main is working. Read the critique in its pane, or talk to it there. **Nothing it says is automatically sent back.**
 
+Names are not case sensitive: `/agent critic` opens the same Critic. `/agent --help` (or `/agent help`) prints the guide in the pane where you typed it.
+
+> The repository is still named `herdr-pi-role`: `/agent` was `/role` until 2026-11-11. `/role` still works and its hints show the new name. Also unchanged for now: the `temporary_role` tool and the `.pi/roles.json` file for project agents.
+
 ## Installation
 
 You need Node 22.19+, Pi (npm distribution, 1.4 or 1.5), a configured model, and an interactive **local Herdr desktop** pane with `hc` and `herdr-app` on PATH. The reference desktop is Herdr app 0.1.12 with hc 0.1.17. A standalone terminal, legacy Herdr multiplexer, or Pi print/RPC process cannot open an agent pane.
 
 Choose **one** install method:
 
-- **From GitHub:** repository access and authenticated Git are required while the repository is private. In the project where you want `/agent`, run `pi install --local git:github.com/johnlindquist/herdr-pi-role`. If your Git credential setup uses a local checkout, `gh repo clone johnlindquist/herdr-pi-role` and `pi install --local /absolute/path/to/herdr-pi-role` also work. Keep that checkout in place.
-- **From the course download:** unzip `temporary-role.zip`; copy the entire `temporary-role` directory to `.pi/extensions/temporary-role/` inside your project. No GitHub account is required for a copy you already have.
+- **With Pi:** in the project where you want `/agent`, run `pi install --local git:github.com/johnlindquist/herdr-pi-role`. Leave out `--local` to have it in every project.
+- **From a checkout:** `git clone https://github.com/johnlindquist/herdr-pi-role`, then `pi install --local /absolute/path/to/herdr-pi-role`. Keep that checkout in place. Copying the whole directory to `.pi/extensions/temporary-role/` inside your project also works.
 
 Start Pi in the project or run `/reload`. Review the code before granting Pi project trust. No separate npm install, Pine, `/split` extension, or new model login is needed if your Pi model already works. To remove a package install, run `pi remove --local` with the same source you installed; for a copied extension, delete its directory. Then `/reload`.
 
@@ -119,3 +123,19 @@ The `temporary_role` tool uses the same operations as `/agent`. Start with `{"ac
 `index.ts` registers `/agent`, its Pi hooks and the agent tool; `guide.ts` supplies pane-aware help, completions and hints. `command-menu.ts` shows those choices in Pi’s own selector and continues into arguments when a command name is Tab-completed. `presentation.mjs` defines reply templates and compacts watched excerpts. A trusted sibling extension may request a local renderer on the model-aware `herdr-role:view.v2` Pi event (legacy v1 inherits Main), bound to the current session ID. The host still owns the fork, read-only access, agent identity, inbox and disconnect signal. No external renderer is required for `/agent`. `host.mjs` verifies the caller’s Herdr pane and forks the current Pi branch. `role-launch.ts` verifies the Pi CLI and selected model arguments before launch; `launch.mjs` starts the terminal child in the same project. `wire.mjs` links the two local processes using a private single-use ticket. It is not a remote messaging service or a security boundary between untrusted users.
 
 From a repository checkout run `npm test` for the guidance, observation-filtering, pending-tool and ticket checks. For a smoke test in a disposable Herdr workspace, open `/agent Notes`, send a unique phrase in Main, and look for it in Notes. From Notes, use `/agent send main Check the second booking.` Verify that Main’s draft remains intact, `/agent inbox` shows exactly one note, and `/agent stop Notes` disconnects without closing the pane.
+
+## How it maps to the MEGA.dev lesson
+
+This is John Lindquist's own build of the `/agent` command from MEGA.dev S04E01 ("Splitting Conversations, the Lab, and Your First Agents"). The lesson teaches you to build your own for whatever harness and workspace you use; this repository is the finished Pi and Herdr version to compare with.
+
+| In the lesson | Here |
+|---|---|
+| `/agent <name> <job>` opens a pane beside Main and watches Main's conversation | `/agent Availability Check whether we still offer a home after someone books it.` |
+| Each agent has its own model picker; a small, fast default | The picker opens on the fast default (Haiku). `--model provider/id` or `--model main` skips it |
+| Only new prompt and answer text is passed on | Tool calls, tool results, images and reasoning are left out |
+| `/agent critic` after the Critic has graduated from the lab | Critic, Notes and Research have starter jobs. A grown agent's job is the `## Job` section of `agents/<name>/agent.md`, which [herdr-pi-lab](https://github.com/johnlindquist/herdr-pi-lab) writes and tests |
+| Up arrow, then Enter on one item sends it back to Main with a note | Each numbered finding is its own card in the agent's pane; `/agent send main #2` does the same. Main shows the note waiting and reads it with your next prompt; its running reply and your draft are untouched |
+| `--help` on everything you build | `/agent --help`, `/agent help send` |
+
+Not in the lesson, and safe to ignore while following it: Historian, project agents in `.pi/roles.json`, `--work` agents and the standalone runner.
+

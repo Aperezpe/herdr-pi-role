@@ -8,7 +8,7 @@ import { replyTray } from './reply-tray.ts';
 import { safeText, OWNER, NOTE, INBOX, spec, message, observation, progressStep, fork, here, roleTools, split, makeNote } from './host.mjs';
 
 import { responseGuide, excerpt, template, pickItems } from './presentation.mjs';
-import { roleCompletions, roleHelp, roleHint } from './guide.ts';
+import { roleCompletions, roleHelp, roleHint,commandAction} from './guide.ts';
 import { commandMenus, type CommandMenu } from './command-menu.ts';
 import { getSupportedThinkingLevels, clampThinkingLevel } from '@earendil-works/pi-ai';
 import { roleModels, modelDirectory, modelJob, modelToken, requireRoleModel } from './models.ts';
@@ -364,7 +364,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
     getArgumentCompletions:prefix=>ctx?roleCompletions(prefix,info()):null,
     handler:async(raw,c)=>{
     const [first='',rest='']=(raw.trim().match(/^(\S+)\s*([\s\S]*)$/)||[]).slice(1);
-    let action=first.toLowerCase(), p:any={};
+    let action=commandAction(first), p:any={};
     try {
       if(action==='help'||(!action&&me)){ c.ui.notify(roleHelp(info(),rest),'info'); return; }
       if(action==='send'){ const m=rest.match(/^(\S+)\s+([\s\S]+)$/); if(!m)throw Error(me?'Use /agent send main <message>.':'Use /agent send <role | all> <message>. See /agent help send.'); p={target:m[1],message:m[2]}; }

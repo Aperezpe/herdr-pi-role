@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {commandMenus} from '../command-menu.ts';
-import {roleCompletions as complete,roleHint as hint,roleHelp as help} from '../guide.ts';
+import {roleCompletions as complete,roleHint as hint,roleHelp as help,commandAction} from '../guide.ts';
 const main={mode:'main',inbox:1,roles:[{name:'Notes',state:'watching'},{name:'Old',state:'stopped'}]};
 const child={mode:'role',state:'watching Main',roles:[],inbox:0};
 test('argument replacement carries the verb, only offers addressable targets, and never rewrites free text',()=>{
@@ -33,4 +33,8 @@ test('an old root choice cannot overwrite a newer job; a completion cannot reope
  accept(items[0]);draft+='Curator';await Promise.resolve();assert.equal(requests,0);
  accept(items[1]);await Promise.resolve();assert.equal(draft,'/widen ');assert.equal(requests,0);
  accept(items[0]);await Promise.resolve();assert.equal(draft,'/widget ');assert.equal(requests,1);
+});
+
+test('--help and -h show the guide instead of opening an agent named --help',()=>{
+ assert.equal(commandAction('--help'),'help');assert.equal(commandAction('-h'),'help');assert.equal(commandAction('Help'),'help');assert.equal(commandAction('Critic'),'critic');assert.equal(commandAction('send'),'send');
 });

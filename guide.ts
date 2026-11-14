@@ -8,6 +8,8 @@ const topics = {
   status: ['Inspect links', '/agent status', 'Opening means the new pane has not connected yet. Watching means its link is active. A stopped or disconnected pane is still an ordinary Pi conversation.'],
   stop: ['Disconnect a link', '/agent stop NAME', 'Disconnect without closing either pane. In an agent, /agent stop disconnects just that agent. A new link requires a fresh fork from Main.'],
 };
+// --help is the same guide: one flag that works on every command (/split --help, /lab --help, /agent --help).
+export const commandAction=(word:string)=>{const a=word.toLowerCase();return a==='--help'||a==='-h'?'help':a;};
 const mainTopics=Object.keys(topics), childTopics=['send','status','stop'];
 const children=s=>s.roles.filter(r=>r.state==='watching'||r.state==='opening');
 const linked=s=>s.state==='watching Main';
