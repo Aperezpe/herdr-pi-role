@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { watchText } from './presentation.mjs';
+import { NEEDS_HERDR, missingTool } from './notices.mjs';
 
 export const OWNER = 'temporary-role.owner.v1', NOTE = 'temporary-role.note.v1', INBOX = 'temporary-role.inbox.v1';
 export const presets = {
@@ -63,13 +64,15 @@ export function fork(SessionManager, ctx, role) {
   return { owner, file: child.getSessionFile() };
 }
 export async function jsonExec(pi, bin, args, cwd) {
-  const r = await pi.exec(bin, args, { cwd, timeout: 6000 });
+  let r;
+  try { r = await pi.exec(bin, args, { cwd, timeout: 6000 }); } catch (e) { throw Error(missingTool(bin, e)); }
+  if (r.code === 127 || /ENOENT|not found/i.test(String(r.stderr)) && !r.stdout) throw Error(missingTool(bin));
   if (r.code !== 0 || r.killed) throw Error(`${bin} ${args[0]} failed: ${safeText(r.stderr || r.stdout || r.code).slice(0, 220)}`);
   return JSON.parse(r.stdout);
 }
 export async function here(pi, ctx) {
   const t = process.env.HC_TERMINAL_ID;
-  if (ctx.mode !== 'tui' || !t) throw Error('/agent open needs interactive Pi in a local Herdr app pane.');
+  if (ctx.mode !== 'tui' || !t) throw Error(NEEDS_HERDR);
   const [term, listing] = await Promise.all([jsonExec(pi, 'hc', ['get', t], ctx.cwd), jsonExec(pi, 'herdr-app', ['ls'], ctx.cwd)]);
   const s = term.labels?.['herdr.space'], tab = term.labels?.['herdr.tab'];
   const matches = listing.spaces.filter(x => !x.machine && s && x.id === s).flatMap(x => x.tabs.filter(v => v.id === tab).flatMap(v => v.terminals.filter(p => p.terminal === t && p.pane)));

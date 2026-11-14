@@ -17,6 +17,8 @@ import { launchSpec, roleCli } from './role-launch.ts';
 
 import { history, historianJob } from './history.ts';
 import { projectRoles, readDeskState } from './project-roles.mjs';
+import { savedJob, savedAgents } from './saved-agents.mjs';
+import { NEEDS_HERDR, noteNotice } from './notices.mjs';
 const HIST='temporary-role.historian-question';
 const WATCH = 'temporary-role.observation', DIRECT = 'temporary-role.direct';
 type Ctx = ExtensionContext;
@@ -84,11 +86,11 @@ export default function temporaryRole(pi:ExtensionAPI) {
   const shownChildState=()=>childState==='watching Main'&&me?.name.toLowerCase()==='historian'?'ready for questions':childState;
   function statusLine() {
     const names = [...roles.values()].filter(active).map(r => `${r.owner.name}${r.state === 'opening' ? '…' : ''}`);
-    const main = [names.length ? `Roles: ${names.join(', ')}` : '', inbox.size ? `${inbox.size} agent note${inbox.size===1?'':'s'} · /agent inbox` : ''].filter(Boolean);
+    const main = [names.length ? `Agents: ${names.join(', ')}` : '', inbox.size ? `${inbox.size} agent note${inbox.size===1?'':'s'} · /agent inbox` : ''].filter(Boolean);
     ctx.ui.setStatus('temporary-role', me ? `${me.name} · ${shownChildState()}${waiting.length ? ` · ${waiting.length} waiting` : ''}` : main.join(' · ') || undefined);
   }
   function info() {
-    return { session:sid(), mode:me?'role':'main', ...(me?{name:me.name,parent:me.parent,state:childState,waiting:waiting.length,job:me.job,model:me.model,thinking:me.thinking,replyFields:template(me.name)}:{projectPresets:Object.values(projectRoles(ctx.cwd)).map(r=>[r.name,r.hint] as [string,string])}), inbox:inbox.size,
+    return { session:sid(), mode:me?'role':'main', ...(me?{name:me.name,parent:me.parent,state:childState,waiting:waiting.length,job:me.job,model:me.model,thinking:me.thinking,replyFields:template(me.name)}:{projectPresets:[...Object.values(projectRoles(ctx.cwd)).map(r=>[r.name,r.hint] as [string,string]),...savedAgents(ctx.cwd) as [string,string][]]}), inbox:inbox.size,
       roles:[...roles.values()].map(r => ({id:r.owner.id,name:r.owner.name,job:r.owner.job,model:r.owner.model,thinking:r.owner.thinking,observesMain:r.owner.name.toLowerCase()!=='historian',state:r.state,...r.address})) };
   }
   function readInbox() {
@@ -103,6 +105,8 @@ export default function temporaryRole(pi:ExtensionAPI) {
     const n={...makeNote(owner,text),to:sid()};
     if(inbox.size>=16 || [...inbox.values(),n].reduce((sum,v)=>sum+v.text.length,0)>16000) throw Error('Main’s inbox is full. The note was not sent.');
     pi.appendEntry(NOTE,n); inbox.set(n.id,n); statusLine();
+    // Main sees the finding arrive as one line; its running reply and the draft in its editor are untouched.
+    if(ctx.hasUI)ctx.ui.notify(noteNotice(owner.name,n.text),'info');
     return {id:n.id,state:'in Main’s inbox; no turn started'};
   }
   function disconnectChild(reason:string) {
@@ -139,8 +143,13 @@ export default function temporaryRole(pi:ExtensionAPI) {
   }
   async function startRole(name:string|undefined, job:string|undefined, work:boolean, c:Ctx, surface?:Surface, opts:{model?:string;thinking?:string;command?:'agent'|'role'|'widget'}={}) {
     if(me) throw Error('Open temporary agents from Main. Use /agent send main to send a note.');
+    // Say what is missing before the model picker, not after it.
+    if(!surface&&(c.mode!=='tui'||!process.env.HC_TERMINAL_ID))throw Error(NEEDS_HERDR);
     const project=projectRoles(c.cwd);
-    const parsed=opts.command?modelJob(job):{model:opts.model,thinking:opts.thinking,job}, s=spec(name,parsed.job,work,project), epoch=generation, origin=sid();
+    const parsed=opts.command?modelJob(job):{model:opts.model,thinking:opts.thinking,job};
+    // No job typed: a saved agent (agents/<name>/agent.md, "## Job") opens with the job the lab tested.
+    if(!parsed.job?.trim()&&name)parsed.job=savedJob(c.cwd,name)??parsed.job;
+    const s=spec(name,parsed.job,work,project), epoch=generation, origin=sid();
     if(opening) throw Error('Another split is opening. Check /agent status.');
     if([...roles.values()].some(r=>active(r)&&r.owner.name.toLowerCase()===s.name.toLowerCase())) throw Error(`${s.name} already has a link. Use /agent status.`);
     if([...roles.values()].filter(active).length>=8) throw Error('Eight links are active. Stop one first.');
