@@ -36,7 +36,7 @@ Then run `/reload` in Pi, or start Pi again. The install has no dependencies to 
 
 ## The walkthrough from the video
 
-Type these in Main, in a Herdr pane, in the video's order. The video's sample replies are drawn examples; your agent's words will differ.
+Type these in Main, in a Herdr pane, in the video's order. The video's sample replies are drawn examples; your agent's words will differ. The pictures are real captures of a second Herdr window running Pi in a fresh clone of [RentAPlace](https://github.com/johnlindquist/rentaplace), with this extension installed from GitHub. The model's wording will differ on your machine.
 
 ### 1. See what `/agent` offers
 
@@ -75,7 +75,11 @@ Main shows one line, `from Repeater · …`, and `1 agent note` in its last line
 /agent critic
 ```
 
-The name is not case sensitive. The Critic opens beside Main on the small, fast model and is already watching. Then, in Main, in [RentAPlace](https://github.com/johnlindquist/rentaplace):
+The name is not case sensitive. The Critic opens beside Main on the small, fast model and is already watching.
+
+![Two panes. Left, Main, whose last line reads Agents: critic. Right, the Critic's pane showing its job under Temporary role: critic, and its last line critic · watching Main](docs/screenshots/agent-open.png)
+
+The right pane is the Critic. It shows the job it was given and its last line says who it is watching. Main's last line lists the agents attached to it. Then, in Main, in [RentAPlace](https://github.com/johnlindquist/rentaplace):
 
 ```text
 add a feature where guests must book at least a few days at the house
@@ -83,11 +87,23 @@ add a feature where guests must book at least a few days at the house
 
 The Critic answers in its own pane: one verdict line with a grade, then a short numbered list. In the video the two findings are "Please be more specific with days" and "This might break existing bookings, how should we roll this out?". The Critic checks three things on every prompt: is there enough to finish the whole task, what else does the change touch, and should it be smaller steps.
 
+![Left, Main's reply about the minimum-stay change. Right, the Critic's reply: a grade line B · wired in booking and quote; search gap remains, then six numbered findings](docs/screenshots/agent-findings.png)
+
+Main did the work on the left. The Critic read the same conversation and answered on the right, in its own pane: a grade, then numbered findings. Nothing was added to Main's conversation.
+
 ### 4. Send one finding back to Main
 
 In the **Critic's pane**, press **↑**. A card under the input shows one finding ("Item 1 · Enter sends to Main"); ↑ and ↓ move between findings. Press **Enter** to send that one. Esc goes back to typing. Or type `/agent send main #2` there (`#1,3` sends two).
 
+![The Critic's pane after pressing Up: a card reads Item 1 · Enter sends to Main with the first finding under it and the keys ↑/↓ select · Esc draft. In Main, the words my unsent draft sit in the input](docs/screenshots/agent-select.png)
+
+The card under the Critic's input holds one finding at a time. Nothing has been sent yet. Main, on the left, has words typed and not sent.
+
 In Main you see `from critic · …` and `1 agent note · /agent inbox`. Main's running reply is not interrupted and what you typed in its input is not changed. The note is read with your next prompt in Main; `/agent inbox` shows it before that.
+
+![After Enter: the Critic's card reads Item 1 · Sent to Main. In Main a dim line starts from critic · and the last line reads Agents: critic · 1 agent note; the words my unsent draft are still in the input](docs/screenshots/agent-sent.png)
+
+The finding arrived in Main as one dim `from critic` line, the last line counts one agent note, and the unsent words are exactly as they were.
 
 If the Critic calls out something dangerous, interrupt Main yourself (Esc in Main). The Critic does not interrupt Main.
 
