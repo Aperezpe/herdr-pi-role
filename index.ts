@@ -8,7 +8,7 @@ import { replyTray } from './reply-tray.ts';
 import { safeText, OWNER, NOTE, INBOX, spec, message, observation, progressStep, fork, here, roleTools, split, makeNote } from './host.mjs';
 
 import { responseGuide, excerpt, template, pickItems } from './presentation.mjs';
-import { roleCompletions, roleHelp, roleHint,commandAction} from './guide.ts';
+import { roleCompletions, roleHelp, roleHint,commandAction,agentList} from './guide.ts';
 import { commandMenus, type CommandMenu } from './command-menu.ts';
 import { getSupportedThinkingLevels, clampThinkingLevel } from '@earendil-works/pi-ai';
 import { roleModels, modelDirectory, modelJob, modelToken, requireRoleModel } from './models.ts';
@@ -212,6 +212,23 @@ export default function temporaryRole(pi:ExtensionAPI) {
   for(const v of [1,2,3])pi.events.on(`herdr-role:view.v${v}`,(raw:unknown)=>{const q=raw as any;if(!ctx||q?.session!==sid()||typeof q?.accept!=='function'||typeof q?.surface?.open!=='function')return;
     q.accept(startRole(q.name,q.job,false,ctx,q.surface,v>=2?{model:q.model,thinking:v===3?q.thinking:undefined,command:q.interactive?'widget':undefined}:{}));
   });
+  // Panels in this Pi (the project's /widget extension) reach Main the way an agent's finding does:
+  // note.v1 puts one line in Main's inbox (no turn, the draft untouched); handoff.v1 gives a saved agent a message,
+  // opening it beside Main first when it isn't open. probe:true only asks whether this hook is here.
+  pi.events.on('herdr-role:note.v1',(raw:unknown)=>{const q=raw as any;if(!ctx||me||q?.session!==sid()||typeof q?.accept!=='function')return;
+    try{q.accept(q.probe?{state:'ready'}:receiveNote({id:`panel:${q.from}`,parent:sid(),parentFile:'',name:String(q.from||'Panel'),job:'',work:false},q.text));}catch(e){q.reject?.(e);}
+  });
+  pi.events.on('herdr-role:handoff.v1',(raw:unknown)=>{const q=raw as any;if(!ctx||me||q?.session!==sid()||typeof q?.accept!=='function')return;
+    q.accept(handoff(String(q.name??''),String(q.text??'')));
+  });
+  async function handoff(name:string,text:string){
+    if(!savedAgents(ctx.cwd).some(([n]:any)=>String(n).toLowerCase()===name.toLowerCase()))throw Error(`No saved agent "${name}" in agents/.`);
+    let r=[...roles.values()].find(v=>active(v)&&v.owner.name.toLowerCase()===name.toLowerCase()),opened=false;
+    if(!r){const o:any=await startRole(name,undefined,false,ctx);r=roles.get(o.id);opened=true;}
+    const peer=r?.peer||await r?.ready;
+    if(!r||!peer||!active(r))throw Error(`${name} did not connect${r?` (${r.state})`:''}.`);
+    return {name:r.owner.name,opened,...await peer.call('direct',{text:message(text)})};
+  }
   pi.events.on('herdr-role:models.v1',(raw:unknown)=>{const q=raw as any;if(ctx&&q?.session===sid()&&typeof q.accept==='function')q.accept(directory(ctx,q.query));});
   pi.on('session_start',async(_e,c)=>{
     ctx=c; generation++; roles.clear(); dispatching=false; scheduled=false; opening=false; readInbox();
@@ -229,7 +246,7 @@ export default function temporaryRole(pi:ExtensionAPI) {
           return visibleWidth(line)<=width?[line]:[truncateToWidth(theme.fg('dim',syntax),width),truncateToWidth(theme.fg('muted',tip),width)];
         }};
       },{placement:'aboveEditor'});
-      const roleMenu:CommandMenu={choices:p=>roleCompletions(p,info()),bare:()=>me?'help':'Critic'};
+      const roleMenu:CommandMenu={choices:p=>roleCompletions(p,info()),bare:()=>me?'help':''};
       const menus=new Map<string,CommandMenu>([['agent',roleMenu],['role',roleMenu]]); // /role is the old name of /agent
       // Only opt in a desk command (/desk, formerly /widget) owned by the installed companion; it names its menu.
       pi.events.emit('herdr-role:command-menu.v1',{inChild:()=>!!me,widget:(menu:CommandMenu&{name?:string})=>menus.set(menu.name??'widget',menu)});
@@ -369,13 +386,14 @@ export default function temporaryRole(pi:ExtensionAPI) {
     return r.state;
   }
   // /agent is the command; /role, its name until 2026-11-11, still works.
-  const agentCommand={description:'[name] [job] · Open a Critic or name an agent. ↑/↓ to choose, Tab to fill; /agent help for examples.',
+  const agentCommand={description:'[name] [job] · List agents, or open one beside Main. ↑/↓ to choose, Tab to fill; /agent help for examples.',
     getArgumentCompletions:prefix=>ctx?roleCompletions(prefix,info()):null,
     handler:async(raw,c)=>{
     const [first='',rest='']=(raw.trim().match(/^(\S+)\s*([\s\S]*)$/)||[]).slice(1);
     let action=commandAction(first), p:any={};
     try {
       if(action==='help'||(!action&&me)){ c.ui.notify(roleHelp(info(),rest),'info'); return; }
+      if(!action){ c.ui.notify(agentList(info()),'info'); return; }
       if(action==='send'){ const m=rest.match(/^(\S+)\s+([\s\S]+)$/); if(!m)throw Error(me?'Use /agent send main <message>.':'Use /agent send <role | all> <message>. See /agent help send.'); p={target:m[1],message:m[2]}; }
       else if(action==='stop')p.target=rest.trim();
       else if(!['inbox','status'].includes(action)){ const parts=(action==='open'?rest:raw).trim().match(/^(?:(--work)\s+)?([\w-]+)(?:\s+([\s\S]+))?$/); if((action==='open'?rest:raw).trim()&&!parts)throw Error('Use /agent NAME job or /agent help.'); action='open'; p={name:parts?.[2],job:parts?.[3],work:!!parts?.[1]}; }

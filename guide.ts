@@ -41,7 +41,7 @@ export function roleCompletions(raw,s){
 export function roleHint(draft,s){
   const cmd=draft.match(/^\/(?:agent|role)(?=\s|$)/);if(!cmd)return null;
   const raw=draft.slice(cmd[0].length).trimStart(), [first='', second='']=raw.trimEnd().split(/\s+/), a=first.toLowerCase(), child=s.mode==='role', rows=children(s);
-  if(!a)return child?['/agent help',linked(s)?'Send a note: /agent send main <message>':'Disconnected · chat here, or open a new agent from Main.']:['/agent [name] [job]', 'Default: Critic · choose an agent, then its model · Esc dismisses'];
+  if(!a)return child?['/agent help',linked(s)?'Send a note: /agent send main <message>':'Disconnected · chat here, or open a new agent from Main.']:['/agent [name] [job]', 'Enter alone: list agents and usage · choose an agent, then its model · Esc dismisses'];
   if(a==='help')return ['/agent help [topic]','Space for topics; Enter shows the guide.'];
   if(a==='send'){
     if(child&&!linked(s))return ['/agent status','Disconnected: no note can be sent.'];
@@ -56,12 +56,25 @@ export function roleHint(draft,s){
   const work=/^(?:open\s+)?--work(?:\s|$)/i.test(raw);
   return [work?'/agent --work <name> [job]':'/agent <name> [one-sentence job]',work?'May edit files or run commands in this project.':'Opens beside Main; inspection tools only.'];
 }
+/** Bare /agent in Main: the project's saved agents, the starters, and how to open one. Opens nothing. */
+export function agentList(s){
+  const saved=(s.projectPresets??[]).filter(([,h]:[string,string])=>/^Saved agent/.test(h));
+  return ['Saved agents (agents/<name>/agent.md, only its ## Job text is used)',
+    ...(saved.length?saved.map(([n,h]:[string,string])=>`  /agent ${n}  ·  ${h.replace(/^Saved agent · /,'')}`):['  none in this project yet']),
+    '','Starter agents',...presets.map(([n,h])=>`  /agent ${n}  ·  ${h}`),
+    '','Usage',
+    '  /agent <name> <job>  ·  Open a pane beside Main with that job',
+    '  /agent <name> --model provider/model [job]  ·  Skip the model picker (--model fast, --model main)',
+    '  /agent send main #2  ·  In the agent pane: send finding 2 to Main (or ↑ then Enter)',
+    '  /agent inbox  ·  In Main: findings waiting for your next prompt',
+    '  /agent --help  ·  The full guide'].join('\n');
+}
 export function roleHelp(s,raw=''){
   const t=raw.trim().toLowerCase(),child=s.mode==='role';
   if(t){if(!Object.hasOwn(topics,t))return `Unknown help topic. Try /agent help ${child?'send':'open'}.`;
     if(child&&t==='send')return `/agent send main <message>\nExample: /agent send main Check the cancellation policy.\n/agent send main #2 sends finding 2 of the latest reply (#1,3 sends two). ↑ then Enter does the same.\n${linked(s)?'Main reads it on its next prompt. Your usual replies stay here.':'This agent is disconnected; open a new one from Main to send notes.'}`;
     if(child&&t==='stop')return '/agent stop\nDisconnect this agent. Its conversation stays open.';
     const [,usage,details]=topics[t];return `${usage}\n${details}${t==='send'?'\nExample: /agent send '+(children(s)[0]?.name||'Critic')+' What should I double-check?':''}`;}
-  const list=child?[...(linked(s)?['↑ then Enter  ·  Send one numbered finding to Main','/agent send main #2  ·  Send finding 2 of the latest reply','/agent send main <message>  ·  Leave a note','/agent stop  ·  Disconnect this agent']:['No live link to Main. Open a fresh agent there to reconnect.']),'/agent status  ·  Check this link']:['/agent  ·  Open a Critic beside Main','/agent Notes  ·  Track decisions','/agent Research  ·  Check evidence','/historian QUESTION  ·  Answer here using Main’s history','/agent Historian  ·  Open a private history desk','/agent <name> [job]  ·  Give an agent your own job','/agent <name>  ·  Open a saved agent: the Job section of agents/<name>/agent.md','/agent --work <name> [job]  ·  Allow workspace changes','/agent send <name | all> <message>  ·  Address linked agents','/agent inbox  ·  Read pending notes','/agent status  ·  Inspect links','/agent stop <name>  ·  Disconnect, keep the pane'];
+  const list=child?[...(linked(s)?['↑ then Enter  ·  Send one numbered finding to Main','/agent send main #2  ·  Send finding 2 of the latest reply','/agent send main <message>  ·  Leave a note','/agent stop  ·  Disconnect this agent']:['No live link to Main. Open a fresh agent there to reconnect.']),'/agent status  ·  Check this link']:['/agent  ·  List saved agents and usage','/agent Critic  ·  Open a Critic beside Main','/agent Notes  ·  Track decisions','/agent Research  ·  Check evidence','/historian QUESTION  ·  Answer here using Main’s history','/agent Historian  ·  Open a private history desk','/agent <name> [job]  ·  Give an agent your own job','/agent <name>  ·  Open a saved agent: the Job section of agents/<name>/agent.md','/agent --work <name> [job]  ·  Allow workspace changes','/agent send <name | all> <message>  ·  Address linked agents','/agent inbox  ·  Read pending notes','/agent status  ·  Inspect links','/agent stop <name>  ·  Disconnect, keep the pane'];
   return [...list,'','Choose an agent, then its model. Tab prepares a draft; Enter confirms. /agent Critic --model main skips the picker.','/agent help send  ·  Messaging examples'].join('\n');
 }

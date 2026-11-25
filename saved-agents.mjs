@@ -21,7 +21,7 @@ export function savedJob(cwd, name) {
   if (!file) return undefined;
   const text = readFileSync(file.path, 'utf8');
   const m = text.match(/^##\s+Job\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m);
-  const body = (m ? m[1] : text.replace(/^#.*$/m, '')).replace(/\s+/g, ' ').trim();
+  const body = (m ? m[1] : '').replace(/\s+/g, ' ').trim();
   if (!body) throw Error(`${file.shown} needs a "## Job" section: one paragraph telling the agent what to do.`);
   if (body.length > 2400) throw Error(`${file.shown}: the Job section is ${body.length} characters; /agent accepts up to 2,400.`);
   return body;

@@ -44,7 +44,7 @@ export function commandMenus(current:AutocompleteProvider, menus:Map<string,Comm
         if(!choices.length)return null;
         // Bare Enter must retain its meaning even if Critic is already linked,
         // or the user is in a child where the bare command instead shows help.
-        const first=choices.find(i=>i.value===bare)??{value:bare,label:bare,description:'Default agent · already linked'};
+        const first=choices.find(i=>i.value===bare)??(bare?{value:bare,label:bare,description:'Default agent · already linked'}:{value:'',label:'(list)',description:'List saved agents and usage'});
         const rows=[first,...choices.filter(i=>i.value!==bare)];
         return {prefix:text!,items:rows.map(i=>({...i,value:`${name} ${i.value}`}))};
       }

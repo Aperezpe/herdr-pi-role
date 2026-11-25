@@ -55,3 +55,14 @@ test('every source file parses (the extension itself needs Pi to load, so this i
   const root = new URL('..', import.meta.url).pathname;
   for (const f of readdirSync(root).filter(f => /\.(ts|mjs)$/.test(f))) execFileSync(process.execPath, ['--check', join(root, f)], { stdio: 'pipe' });
 });
+
+test('bare /agent lists saved agents and usage, and an agent.md without a ## Job heading is refused', async () => {
+  const { agentList } = await import('../guide.ts');
+  const dir = project({ 'agents/critic/agent.md': '# Critic\n\n## Job\nCheck it.\n', 'agents/nojob/agent.md': '# No job\nJust prose, no heading.\n' });
+  assert.throws(() => savedJob(dir, 'nojob'), /needs a "## Job" section/);
+  const list = agentList({ roles: [], projectPresets: savedAgents(dir) });
+  assert.match(list, /\/agent critic  ·  agents\/critic\/agent\.md/);
+  assert.match(list, /\/agent <name> <job>/);
+  assert.match(list, /\/agent --help/);
+  assert.match(agentList({ roles: [], projectPresets: [] }), /none in this project yet/);
+});
